@@ -1,0 +1,9 @@
+transformers==4.39.1
+datasets
+sentencepiece
+matplotlib
+scipy
+nltk
+wandb
+accelerate
+openai
