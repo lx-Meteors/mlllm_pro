@@ -18,7 +18,7 @@
         "head_num": 15,
         "segment_num": 2,
         "task_type": "Compress",
-        "wo_ae": true,
+        "wo_ae": false,
         "instruction_fine-tuning_add_compress_loss": true
     },
     "data_config": {

@@ -20,7 +20,7 @@
 # python ./vanilla_trainer.py --work_dir compressLLM_debug --port 29500
 # python ./vanilla_evaluator.py --work_dir compressLLM_debug --batch_size 1
 
-python prepare_data.py --work_dir 'compressLLM_test_prepare_data1'
-python ./trainer.py --work_dir 'compressLLM_test_prepare_data1' --port 14522
-python ./evaluator.py --work_dir 'compressLLM_test_prepare_data1' --batch_size 1
+python prepare_data.py --work_dir 'compressLLM_baseline'
+python ./trainer.py --work_dir 'compressLLM_baseline' --port 14522
+python ./evaluator.py --work_dir 'compressLLM_baseline' --batch_size 1
 # bash train.sh

@@ -200,9 +200,9 @@ class CompressLLM(torch.nn.Module):
             loss_info["ae_loss"] = ae_loss.item()
             tot_loss += ae_loss
             tot_task += 1      
-        # else:
-        #     inputs['ae_targets'] = inputs['ae_targets'].contiguous().view(-1).to(logits.device)
-        #     loss_info["ae_loss"] = -1
+        else:
+            inputs['ae_targets'] = inputs['ae_targets'].contiguous().view(-1).to(logits.device)
+            loss_info["ae_loss"] = -1
 
         loss = tot_loss/tot_task
         # return AE_logtis for validation.
