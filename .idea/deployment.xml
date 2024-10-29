@@ -28,6 +28,9 @@
           <mappings>
             <mapping deploy="/mnt/zhaorunsong/lx" local="$PROJECT_DIR$" web="/" />
           </mappings>
+          <excludedPaths>
+            <excludedPath path="/mnt/zhaorunsong/lx/compress/compressLLM_baseline/adapter.pt" />
+          </excludedPaths>
         </serverdata>
       </paths>
     </serverData>

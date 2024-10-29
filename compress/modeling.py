@@ -59,6 +59,7 @@ class CompressLLM(torch.nn.Module):
         self.task_config = task_config
         config = self.model.config
         self.vocab_size = config.vocab_size
+        # todo: 1.men_tokens是记忆槽吗和special_tokens是干什么的？
         self.mem_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((mem_size, config.hidden_size)), requires_grad=True)
         self.special_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((2, config.hidden_size)), requires_grad=True)
         self.head_num = head_num
@@ -88,7 +89,7 @@ class CompressLLM(torch.nn.Module):
 
         # [1,seq_len]
         position_ids = torch.arange(1,seq_len+1,device=inputs_embeds.device).unsqueeze(0)
-        # [1,mem_size]
+        # [1,mem_size]：compress token position information, the step is compression ratio
         mem_position_ids = torch.arange((self.head_num+1)//2, seq_len+1, step=self.head_num, device=inputs_embeds.device).unsqueeze(0)
         # [1,seq_len+mem_size]
         encode_position_ids = torch.cat([position_ids,mem_position_ids],dim=1)
@@ -124,12 +125,14 @@ class CompressLLM(torch.nn.Module):
             # print("lm_targets will be used")
             # [B,seq_len-1] -> [B,seq_len-1,E]
             lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:,:-1])
-            
+
             # [1,E] -> [1,1,E] -> [B,1,E]
+            # todo: 2.expand_lm_token的作用：是为了对齐长度吗？
             expand_lm_token = self.special_tokens[1:2].unsqueeze(0).expand(bsz, 1, emb_size)
             
             #                     [B,mem_size,E];     [B,1,E];      [B,seq_len-1,E]
             lm_emb = torch.cat([mem_hidden, expand_lm_token,lm_target_emb],dim=1)
+            # todo: 这里position_ids+seq_len-1:  position_ids的长度不是seq_len吗 怎么又加了一个seq_len
             lm_position_ids = torch.cat([mem_position_ids,position_ids+seq_len-1],dim=1)
             
             if "wo_pe" in self.task_config:
@@ -140,7 +143,7 @@ class CompressLLM(torch.nn.Module):
                 outputs = self.model(
                 position_ids=lm_position_ids,
                 inputs_embeds=lm_emb
-            )               
+            )
 
             # [B,mem_size+S,V] -> [B,S,V]
             logits = outputs.logits[:,mem_size:]
@@ -159,11 +162,12 @@ class CompressLLM(torch.nn.Module):
         if "compress_targets" in inputs and self.compress_head is not None:
             # print("compress_targets will be used")
             # [B,mem_size,emb_size] -> [B,mem_size,head_num*vocab_size,]
-            logits =  self.compress_head(mem_hidden)
+            logits = self.compress_head(mem_hidden)
             logits = logits.float()
             logits = logits.contiguous().view(-1, self.vocab_size)
             inputs['compress_targets'] = inputs['compress_targets'].contiguous().view(-1).to(logits.device)
-            
+
+            # todo: 3.这个logits(b*mem_size)和compress_targets(b*s)数量相等吗
             compress_loss = self.loss_fct(logits, inputs['compress_targets'])
             loss_info["compress_loss"] = compress_loss.item()
             tot_loss += compress_loss
