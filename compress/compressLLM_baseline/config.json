@@ -14,8 +14,8 @@
     },
     "task_config": {
         "segment_size": 510,
-        "mem_size": 34,
-        "head_num": 15,
+        "mem_size": 102,
+        "head_num": 5,
         "segment_num": 2,
         "task_type": "Compress",
         "wo_ae": false,
