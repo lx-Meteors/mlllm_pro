@@ -40,19 +40,23 @@ class Evaluator:
             info_list=json.load(f)
 
         lm_loss_values = [entry['training_loss']["lm_loss"] for entry in info_list]
+        compress_loss_values = [-1 if 'compress_loss' not in entry['training_loss'] else entry['training_loss']["compress_loss"] for entry in info_list]
         step_values = [entry['steps'] for entry in info_list]
         lr_values = [entry['learning_rate'] for entry in info_list]
         
         plt.figure(figsize=(10, 5))
         plt.plot(step_values, lm_loss_values, label="lm_loss")
+        if compress_loss_values[0] != -1:
+            plt.plot(step_values, compress_loss_values, label='compress_loss')
+
 
         plt.xlabel("step")
         plt.ylabel("loss")
         plt.title(self.work_dir)
         plt.legend()
         plt.grid(True)
-        plt.show()
         plt.savefig(os.path.join(self.work_dir, 'instruction_training_loss.png'))
+        plt.show()
         plt.close()
 
 
@@ -68,12 +72,15 @@ class Evaluator:
             info_list=json.load(f)
 
         lm_loss_values = [entry['training_loss']["lm_loss"] for entry in info_list]
+        compress_loss_values = [-1 if 'compress_loss' not in entry['training_loss'] else entry['training_loss']["compress_loss"] for entry in info_list]
         step_values = [entry['steps'] for entry in info_list]
         lr_values = [entry['learning_rate'] for entry in info_list]
 
         
         plt.figure(figsize=(10, 5))
         plt.plot(step_values, exponential_moving_average(lm_loss_values,alpha=alpha), label="lm_loss")
+        if compress_loss_values[0]!=-1:
+            plt.plot(step_values, exponential_moving_average(compress_loss_values,alpha=alpha), label="compress_loss")
 
         plt.xlabel("step")
         plt.ylabel(f"loss(ema_alpha={alpha})")
@@ -157,6 +164,23 @@ def evaluate(rank, args, world_size):
     evaluator = Evaluator(config, args.work_dir, args.batch_size)
     evaluator.run(rank)
 
+def cal_avg_loss(args, config):
+    lm_loss = []
+    compress_loss = []
+    use_compress_loss = False
+    with open(args.work_dir+f'/instruction_info.json', 'r') as f:
+        data = json.load(f)
+        for run in data:
+            lm_loss.append(run['training_loss']['lm_loss'])
+            if run['training_loss']['compress_loss'] is not None:
+                use_compress_loss = True
+                compress_loss.append(run['training_loss']['compress_loss'])
+    avg_lm_loss = np.mean(lm_loss)
+    if use_compress_loss:
+        avg_compress_loss = np.mean(compress_loss)
+        return avg_lm_loss,avg_compress_loss
+    else:
+        return avg_lm_loss, -1
 
 # Launch multi-process eval
 if __name__ == "__main__":
@@ -212,8 +236,11 @@ if __name__ == "__main__":
 
     avg_bleu4 = np.mean(bleu4_list)
     print(f"avg_bleu4:{avg_bleu4}")
+    avg_lm_loss, avg_compress_loss = cal_avg_loss(args, config)
+    print(f"avg_lm_loss:{avg_lm_loss}")
+    print(f"avg_compress_loss:{avg_compress_loss}")
     with open(args.work_dir+f'/instruction_brief_eval_info.json', 'w', encoding='utf-8') as f:
-        json.dump(f"avg_bleu4:{avg_bleu4}", f, ensure_ascii=False)
+        json.dump(f"avg_bleu4:{avg_bleu4}, avg_lm_loss:{avg_lm_loss}, avg_compress_loss:{avg_compress_loss}", f, ensure_ascii=False)
 
     with open(args.work_dir+f'/instruction_inference_results.json', 'w', encoding='utf-8') as f:
         json.dump(instruction_inference_results, f, ensure_ascii=False, indent=4)  
