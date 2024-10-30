@@ -99,7 +99,7 @@ def count_parameters(model, config):
 def train(rank, args, world_size):
 
     if rank==0:
-        wandb.init(project="local-experiment")
+        wandb.init(project="local-experiment",mode="disabled")
 
     
     with open(args.work_dir+"/config.json") as f:
