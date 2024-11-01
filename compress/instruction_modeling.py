@@ -424,19 +424,31 @@ def save_adapter(model,save_path_and_name='adapter.pt', log=False):
     torch.save(adapter_state_dict, save_path_and_name)
 
 def load_adapter(model, save_path_and_name='adapter.pt', log=False):
+    def merge_weight(model, lora_params):
+        for name, module in model.named_children():
+            if name == "compress_head":
+                continue
+            if isinstance(module, LinearLoraLayer) or isinstance(module, EmbeddingLoraLayer):
+                lora_weight = lora_params[name]
+                module.weight.data += lora_weight
+            else:
+                merge_weight(model, lora_params)
+
+    lora_params = {}
     adapter_state_dict = torch.load(save_path_and_name, map_location='cpu')  # 先加载到CPU
     if log:
         print("Loading adapter parameters:")
-        for name, _ in adapter_state_dict.items():
+        for name, weight in adapter_state_dict.items():
             print(f"[Load Adapter] {name}")
-    
+            lora_params[name] = weight
+
     # 将adapter的权重转移到模型的设备上
     adapter_state_dict = {k: v.to(model.device) for k, v in adapter_state_dict.items()}
-    
+
     model.load_state_dict(adapter_state_dict, strict=False)
+    # merge lora weight to origin
+    merge_weight(model, lora_params)
     return model
-
-
 
 def get_model_for_compress(model_id, task_config, rank):
 
@@ -452,8 +464,6 @@ def get_model_for_compress(model_id, task_config, rank):
             else:
                 # Recursively apply this function to submodules
                 add_compress_lora(module, task_config)
-
-    
 
     # config = BitsAndBytesConfig(
     #     load_in_4bit=True,
