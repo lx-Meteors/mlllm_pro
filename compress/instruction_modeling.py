@@ -198,7 +198,7 @@ class CompressLLM(torch.nn.Module):
             lm_loss = self.loss_fct(logits, inputs["instruction_target"])
             loss_info["lm_loss"] = lm_loss.item()
             tot_loss += lm_loss
-            tot_task += 1                 
+            tot_task += 1
 
         loss = tot_loss/tot_task
 
@@ -350,6 +350,7 @@ class CompressLLM(torch.nn.Module):
 
                 # [B]->[B,E]->[B,1,E]
                 next_inputs_embeds = self.model.model.embed_tokens(next_token_id).unsqueeze(1).to(inputs_embeds.device)
+                # todo: 不是很理解这里每次都是[1,1]和+1的作用
                 next_position_ids = next_position_ids[:,-1:]+1 # [1, seq_len]/[1,1] -> [1,1]
                 generate_text.append(next_token_id.item())
                 if next_token_id.item() == 2:
@@ -357,6 +358,56 @@ class CompressLLM(torch.nn.Module):
 
             return generate_text
         return generate_text
+
+
+    def cl_inference(self, inputs, generate_num):
+        # ->LlamaForCausalLM->LlamaModel->embed_tokens
+        inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
+        bsz, seq_len, emb_size = inputs_embeds.size()
+        mem_size = self.mem_tokens.size(0)
+        expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
+        encode_inputs_embeds = torch.cat([inputs_embeds, expand_mem],dim=1)
+
+        # [1,seq_len]
+        position_ids = torch.arange(1, seq_len+1, device=inputs_embeds.device).unsqueeze(0)
+        # [1,mem_size]
+        mem_position_ids = torch.arange((self.head_num+1)//2, seq_len+1, step=self.head_num, device=inputs_embeds.device).unsqueeze(0)
+        # [1,seq_len+mem_size]
+        encode_position_ids = torch.cat([position_ids, mem_position_ids],dim=1)
+
+        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+        if "wo_pe" in self.task_config:
+            # print("no pe in here")
+            outputs = self.model(
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+            )
+        else:
+            outputs = self.model(
+                position_ids=encode_position_ids,
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+            )
+
+        hidden_states = outputs.hidden_states[-1]
+
+        # [B,mem_size,emb_size]
+        mem_hidden = hidden_states[:,-mem_size:]
+        # [B,mem_size,emb_size] -> [B,mem_size,head_num*vocab_size]
+        logits = self.compress_head(mem_hidden).float()
+        # [B*mem_size*head_num,vocab_size]
+        logits = logits.contiguous().view(-1, self.vocab_size)
+        # [b*m*h,v] -> [b*m*h]
+        generate_text = torch.argmax(logits, dim=-1).item()
+
+        return generate_text
+
+
+
+
+
+
+
 
 
 
