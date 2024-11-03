@@ -23,8 +23,8 @@ from instruction_dataloader import get_dataset
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--work_dir', type=str, required=True, help='Directory including the configuration file')
-    parser.add_argument('--batch_size', type=int, required=True, help='total batch size')
+    parser.add_argument('--work_dir', type=str, default='compressLLM_instruction_baseline_lm_merge_lora', required=False, help='Directory including the configuration file')
+    parser.add_argument('--batch_size', type=int, default='14526', required=False, help='total batch size')
     return parser.parse_args()
 
 class Evaluator:
@@ -172,7 +172,7 @@ def cal_avg_loss(args, config):
         data = json.load(f)
         for run in data:
             lm_loss.append(run['training_loss']['lm_loss'])
-            if run['training_loss']['compress_loss'] is not None:
+            if 'compress_loss' in run['training_loss']:
                 use_compress_loss = True
                 compress_loss.append(run['training_loss']['compress_loss'])
     avg_lm_loss = np.mean(lm_loss)

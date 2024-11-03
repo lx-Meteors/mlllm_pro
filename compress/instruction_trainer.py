@@ -34,8 +34,8 @@ logging.basicConfig(
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--work_dir', type=str, required=True, help='Directory including the configuration file, for saving model')
-    parser.add_argument('--port', type=str, required=True, help='port for ddp training')
+    parser.add_argument('--work_dir', type=str, default='compressLLM_instruction_baseline_lm_merge_lora', required=False, help='Directory including the configuration file, for saving model')
+    parser.add_argument('--port', type=str, default='14526', required=False, help='port for ddp training')
     return parser.parse_args()
 
 
@@ -141,7 +141,7 @@ def train(rank, args, world_size):
     
     # Instantiate the model and move it to the corresponding GPU
     model = get_model(training_config["model_id"], task_config, rank)
-    model = load_adapter(model, save_path_and_name=args.work_dir+'/adapter.pt', log=False)
+    model = load_adapter(model, save_path_and_name=args.work_dir+'/adapter.pt', log=False, is_train=True)
 
     if rank == 0:
         count_parameters(model, config)

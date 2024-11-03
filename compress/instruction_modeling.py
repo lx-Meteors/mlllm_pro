@@ -1,3 +1,5 @@
+import logging
+
 from transformers import AutoModelForCausalLM, AutoTokenizer,BitsAndBytesConfig
 import torch
 from torch import nn
@@ -423,31 +425,33 @@ def save_adapter(model,save_path_and_name='adapter.pt', log=False):
     adapter_state_dict = {name: param for name, param in state_dict.items() if name in adapter_name}
     torch.save(adapter_state_dict, save_path_and_name)
 
-def load_adapter(model, save_path_and_name='adapter.pt', log=False):
-    def merge_weight(model, lora_params):
+def load_adapter(model, save_path_and_name='adapter.pt', log=False, is_train=False):
+    def merge_weight(model):
         for name, module in model.named_children():
             if name == "compress_head":
                 continue
             if isinstance(module, LinearLoraLayer) or isinstance(module, EmbeddingLoraLayer):
-                lora_weight = lora_params[name]
-                module.weight.data += lora_weight
+                lora_AB = module.lora_A.data @ module.lora_B.data
+                if module.weight.data.shape == lora_AB.shape:
+                    module.weight.data += lora_AB * module.scale
+                else:
+                    module.weight.data += lora_AB.transpose(0,1) * module.scale
             else:
-                merge_weight(model, lora_params)
+                merge_weight(module)
 
-    lora_params = {}
     adapter_state_dict = torch.load(save_path_and_name, map_location='cpu')  # 先加载到CPU
     if log:
         print("Loading adapter parameters:")
         for name, weight in adapter_state_dict.items():
             print(f"[Load Adapter] {name}")
-            lora_params[name] = weight
-
     # 将adapter的权重转移到模型的设备上
     adapter_state_dict = {k: v.to(model.device) for k, v in adapter_state_dict.items()}
 
     model.load_state_dict(adapter_state_dict, strict=False)
     # merge lora weight to origin
-    merge_weight(model, lora_params)
+    if is_train:
+        logging.info("merge lora weight to origin")
+        merge_weight(model)
     return model
 
 def get_model_for_compress(model_id, task_config, rank):
