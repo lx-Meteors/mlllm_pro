@@ -18,7 +18,7 @@ from torch.nn import DataParallel
 import torch.multiprocessing as mp
 
 from instruction_prepare_data import get_examples
-from instruction_modeling import get_model, save_adapter, load_adapter
+from instruction_modeling import get_model, save_adapter, load_adapter, load_adapter_to_merge_weight
 from instruction_dataloader import get_dataset
 
 def parse_args():
@@ -111,7 +111,8 @@ class Evaluator:
         loader = DataLoader(dataset, batch_size=None)
         
         model = get_model(training_config["model_id"], task_config, rank)
-        model = load_adapter(model, save_path_and_name=self.work_dir+'/instruction_adapter.pt', log=False)
+        model = load_adapter_to_merge_weight(model, train_adapter=args.work_dir + '/adapter.pt', instruction_adapter=args.work_dir + '/instruction_adapter.pt',is_train=False)
+        # model = load_adapter(model, save_path_and_name=self.work_dir+'/instruction_adapter.pt', log=False)
         model.eval()
 
         info_list=[]

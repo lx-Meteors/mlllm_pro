@@ -454,20 +454,53 @@ def load_adapter(model, save_path_and_name='adapter.pt', log=False, is_train=Fal
         merge_weight(model)
     return model
 
-def get_model_for_compress(model_id, task_config, rank):
-
-    def add_compress_lora(model, task_config):
-        for name, module in model.named_children():
-            
+def load_adapter_to_merge_weight(model, train_adapter='adapter.pt', instruction_adapter="", is_train=False):
+    def merge_weight(model):
+        for name, module in model.named_children():     # adapter是W'=W+AB -> instruction_adapter是
             if name == "compress_head":
                 continue
-            if isinstance(module, nn.Linear):
-                setattr(model, name, LinearLoraLayer(module.in_features, module.out_features, weight=module.weight.data.clone()))
-            elif isinstance(module, nn.Embedding):
-                setattr(model, name, EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx,weight=module.weight.data.clone()))
+            if isinstance(module, LinearLoraLayer) or isinstance(module, EmbeddingLoraLayer):
+                lora_AB = module.lora_A.data @ module.lora_B.data
+                if module.weight.data.shape == lora_AB.shape:
+                    module.weight.data += lora_AB * module.scale
+                else:
+                    module.weight.data += lora_AB.transpose(0,1) * module.scale
             else:
-                # Recursively apply this function to submodules
-                add_compress_lora(module, task_config)
+                merge_weight(module)
+
+    adapter_state_dict = torch.load(train_adapter, map_location='cpu')  # 先加载到CPU
+    # 将adapter的权重转移到模型的设备上
+    adapter_state_dict = {k: v.to(model.device) for k, v in adapter_state_dict.items()}
+
+    model.load_state_dict(adapter_state_dict, strict=False)
+    merge_weight(model)
+    add_compress_lora(model, task_config="")
+    # merge lora weight to origin
+    if is_train:
+        logging.info("train：merge lora weight to origin")
+    else:
+        adapter_state_dict = torch.load(instruction_adapter, map_location='cpu')  # 先加载到CPU
+        # 将adapter的权重转移到模型的设备上
+        adapter_state_dict = {k: v.to(model.device) for k, v in adapter_state_dict.items()}
+
+        model.load_state_dict(adapter_state_dict, strict=False)
+        logging.info("evaluator：merge lora weight to origin")
+    return model
+
+def add_compress_lora(model, task_config):
+    for name, module in model.named_children():
+        if name == "compress_head":
+            continue
+        if isinstance(module, nn.Linear):
+            setattr(model, name,
+                    LinearLoraLayer(module.in_features, module.out_features, weight=module.weight.data.clone()))
+        elif isinstance(module, nn.Embedding):
+            setattr(model, name, EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx,
+                                                    weight=module.weight.data.clone()))
+        else:
+            # Recursively apply this function to submodules
+            add_compress_lora(module, task_config)
+def get_model_for_compress(model_id, task_config, rank):
 
     # config = BitsAndBytesConfig(
     #     load_in_4bit=True,

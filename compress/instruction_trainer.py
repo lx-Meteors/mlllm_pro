@@ -14,7 +14,7 @@ import argparse
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from instruction_prepare_data import get_examples
-from instruction_modeling import get_model, save_adapter, load_adapter
+from instruction_modeling import get_model, save_adapter, load_adapter, load_adapter_to_merge_weight
 from instruction_dataloader import get_dataset
 
 import logging
@@ -141,7 +141,8 @@ def train(rank, args, world_size):
     
     # Instantiate the model and move it to the corresponding GPU
     model = get_model(training_config["model_id"], task_config, rank)
-    model = load_adapter(model, save_path_and_name=args.work_dir+'/adapter.pt', log=False, is_train=True)
+    model = load_adapter_to_merge_weight(model, train_adapter=args.work_dir+'/adapter.pt', is_train=True)
+    # model = load_adapter(model, save_path_and_name=args.work_dir+'/adapter.pt', log=False, is_train=True)
 
     if rank == 0:
         count_parameters(model, config)
