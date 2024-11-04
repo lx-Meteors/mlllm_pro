@@ -111,7 +111,7 @@ class Evaluator:
         loader = DataLoader(dataset, batch_size=None)
         
         model = get_model(training_config["model_id"], task_config, rank)
-        model = load_adapter_to_merge_weight(model, train_adapter=args.work_dir + '/adapter.pt', instruction_adapter=args.work_dir + '/instruction_adapter.pt',is_train=False)
+        model = load_adapter_to_merge_weight(model, train_adapter=self.work_dir + '/adapter.pt', instruction_adapter=self.work_dir + '/instruction_adapter.pt',is_train=False)
         # model = load_adapter(model, save_path_and_name=self.work_dir+'/instruction_adapter.pt', log=False)
         model.eval()
 
@@ -122,6 +122,7 @@ class Evaluator:
                 inputs = {key:value.to(rank) if value is not None else None for key,value in inputs.items()}
                 # output = model(inputs=inputs)
                 generate_text = model.lm_inference(inputs,segment_size=task_config["segment_size"])
+                # cl_generate_text = model.cl_inference(inputs)
                 # print(inputs['ae_targets'].size())
                 # print("teacher forcing generate:", torch.argmax(output["logits"], dim=-1).tolist()) # B,S,V -> B,S
                 # print("Auto-regressive generate:", generate_text)
@@ -131,7 +132,7 @@ class Evaluator:
                 # print(f"BLEU-4:",bleu4*100)
                 # print('gen:', generate_text)
                 
-                info_list.append({"generate_text":generate_text})
+                info_list.append({"generate_text": generate_text})
 
         with open(self.work_dir+f'/instruction_eval_info_list_{rank}.json', 'w', encoding='utf-8') as f:
             json.dump(info_list, f, ensure_ascii=False)
@@ -183,6 +184,29 @@ def cal_avg_loss(args, config):
     else:
         return avg_lm_loss, -1
 
+def cal_cl_token_acc(cl_generate_text, examples_list, tokenizer):
+    correct_tokens = 0
+    total_tokens = 0
+    acc = []
+    info_list = []
+    for cl_gen_text, examples in zip(cl_generate_text, examples_list):
+        input_text = example["input"]
+        cl_gen_text = tokenizer.decode(cl_gen_text, skip_special_tokens=True)
+        cl_gen_ids = tokenizer(cl_gen_text, add_special_tokens=False)["input_ids"]
+        input_ids = tokenizer(input_text, add_special_tokens=False)["input_ids"]
+
+        total_tokens += len(cl_gen_ids)
+        correct_tokens += sum(1 for o,d in zip(cl_gen_ids, input_ids) if o == d)
+        acc.append(correct_tokens / total_tokens)
+        correct_tokens = 0
+        total_tokens = 0
+        info_list.append({"generate_text": input_text,
+                          "cl_generate_text": cl_gen_text})
+    with open(args.work_dir+f'/instruction_cl_generate_text.json', 'w', encoding='utf-8') as f:
+        json.dump(info_list, f, ensure_ascii=False, indent=4)
+    return np.mean(acc)
+
+
 # Launch multi-process eval
 if __name__ == "__main__":
     args = parse_args()
@@ -209,13 +233,15 @@ if __name__ == "__main__":
         info_list += list_i
 
     generate_text = [entry["generate_text"] for entry in info_list]
+    # cl_generate_text = [entry["cl_generate_text"] for entry in info_list]
 
     print("calculate BLEU4...")    
 
     if os.path.exists(f'test_instruction_dataset.json'):
         with open(f'test_instruction_dataset.json', 'r', encoding='utf-8') as f:
             examples_list =  json.load(f)
-    
+
+    # cl_generate_acc = cal_cl_token_acc(cl_generate_text, examples_list, tokenizer)
 
     instruction_inference_results = []
     bleu4_list = []
@@ -240,6 +266,7 @@ if __name__ == "__main__":
     avg_lm_loss, avg_compress_loss = cal_avg_loss(args, config)
     print(f"avg_lm_loss:{avg_lm_loss}")
     print(f"avg_compress_loss:{avg_compress_loss}")
+    # print(f"cl_generate_acc:{cl_generate_acc}")
     with open(args.work_dir+f'/instruction_brief_eval_info.json', 'w', encoding='utf-8') as f:
         json.dump(f"avg_bleu4:{avg_bleu4}, avg_lm_loss:{avg_lm_loss}, avg_compress_loss:{avg_compress_loss}", f, ensure_ascii=False)
 

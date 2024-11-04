@@ -1,4 +1,5 @@
 import logging
+import queue
 
 from transformers import AutoModelForCausalLM, AutoTokenizer,BitsAndBytesConfig
 import torch
@@ -16,6 +17,8 @@ class LinearLoraLayer(nn.Module):
     # No bias in LLama3 LinearLayer
     def __init__(self, in_features, out_features, r=16, weight=None):
         super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
         self.weight = nn.Parameter(weight, requires_grad=False)
         self.scale = 2  # The alpha value is usually twice the rank
         self.lora_A = nn.Parameter(torch.zeros((in_features, r), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
@@ -33,6 +36,8 @@ class EmbeddingLoraLayer(nn.Module):
     # No bias in LLama3 LinearLayer
     def __init__(self, in_features, out_features, padding_idx, r=128, weight=None):
         super().__init__()
+        self.num_embeddings = in_features
+        self.embedding_dim = out_features
         self.padding_idx = padding_idx
         self.weight = nn.Parameter(weight, requires_grad=False)
         self.scale = 2  # The alpha value is usually twice the rank
@@ -362,7 +367,7 @@ class CompressLLM(torch.nn.Module):
         return generate_text
 
 
-    def cl_inference(self, inputs, generate_num):
+    def cl_inference(self, inputs, generate_num=2):
         # ->LlamaForCausalLM->LlamaModel->embed_tokens
         inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
         bsz, seq_len, emb_size = inputs_embeds.size()
@@ -425,20 +430,7 @@ def save_adapter(model,save_path_and_name='adapter.pt', log=False):
     adapter_state_dict = {name: param for name, param in state_dict.items() if name in adapter_name}
     torch.save(adapter_state_dict, save_path_and_name)
 
-def load_adapter(model, save_path_and_name='adapter.pt', log=False, is_train=False):
-    def merge_weight(model):
-        for name, module in model.named_children():
-            if name == "compress_head":
-                continue
-            if isinstance(module, LinearLoraLayer) or isinstance(module, EmbeddingLoraLayer):
-                lora_AB = module.lora_A.data @ module.lora_B.data
-                if module.weight.data.shape == lora_AB.shape:
-                    module.weight.data += lora_AB * module.scale
-                else:
-                    module.weight.data += lora_AB.transpose(0,1) * module.scale
-            else:
-                merge_weight(module)
-
+def load_adapter(model, save_path_and_name='adapter.pt', log=False):
     adapter_state_dict = torch.load(save_path_and_name, map_location='cpu')  # 先加载到CPU
     if log:
         print("Loading adapter parameters:")
@@ -448,10 +440,6 @@ def load_adapter(model, save_path_and_name='adapter.pt', log=False, is_train=Fal
     adapter_state_dict = {k: v.to(model.device) for k, v in adapter_state_dict.items()}
 
     model.load_state_dict(adapter_state_dict, strict=False)
-    # merge lora weight to origin
-    if is_train:
-        logging.info("merge lora weight to origin")
-        merge_weight(model)
     return model
 
 def load_adapter_to_merge_weight(model, train_adapter='adapter.pt', instruction_adapter="", is_train=False):
@@ -468,24 +456,63 @@ def load_adapter_to_merge_weight(model, train_adapter='adapter.pt', instruction_
             else:
                 merge_weight(module)
 
+    original_linear_weights = queue.Queue()
+    original_embedding_weights = queue.Queue()
+    org_linear_weights, org_embedding_weights = save_original_weights(model, original_linear_weights, original_embedding_weights)
     adapter_state_dict = torch.load(train_adapter, map_location='cpu')  # 先加载到CPU
     # 将adapter的权重转移到模型的设备上
     adapter_state_dict = {k: v.to(model.device) for k, v in adapter_state_dict.items()}
 
     model.load_state_dict(adapter_state_dict, strict=False)
+    # W' -> W + AB
     merge_weight(model)
-    add_compress_lora(model, task_config="")
+    init_lora(model, org_linear_weights, org_embedding_weights, task_config="")
     # merge lora weight to origin
     if is_train:
         logging.info("train：merge lora weight to origin")
     else:
+        # load A'B'
         adapter_state_dict = torch.load(instruction_adapter, map_location='cpu')  # 先加载到CPU
         # 将adapter的权重转移到模型的设备上
         adapter_state_dict = {k: v.to(model.device) for k, v in adapter_state_dict.items()}
-
+        # finally -> h = W' + A'B' = W + AB + A'B'
         model.load_state_dict(adapter_state_dict, strict=False)
-        logging.info("evaluator：merge lora weight to origin")
+        logging.info("evaluator：no merge lora weight to origin")
     return model
+
+def save_original_weights(model, original_linear_weights, original_embedding_weights):
+    for name, module in model.named_children():
+        if name == "compress_head":
+            continue
+        if isinstance(module, LinearLoraLayer):
+            original_linear_weights.put(module.weight.data.clone())
+        # Recursively save original weights in submodules
+        elif isinstance(module, EmbeddingLoraLayer):
+            original_embedding_weights.put(module.weight.data.clone())
+        else:
+            save_original_weights(module, original_linear_weights, original_embedding_weights)
+    return original_linear_weights, original_embedding_weights
+
+def init_lora(model, original_linear_weights, original_embedding_weights, task_config):
+    for name, module in model.named_children():
+        if name == "compress_head":
+            continue
+        if isinstance(module, LinearLoraLayer):
+            nn.init.kaiming_uniform_(module.lora_A, a=math.sqrt(5))
+            nn.init.zeros_(module.lora_B)
+            # original_weight = original_linear_weights.get()
+            # setattr(model, name,
+            #         LinearLoraLayer(module.in_features, module.out_features, weight=original_weight))
+        elif isinstance(module, EmbeddingLoraLayer):
+            nn.init.zeros_(module.lora_A)
+            nn.init.normal_(module.lora_B)
+            # original_weight = original_embedding_weights.get()
+            # setattr(model, name, EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx,
+            #                                         weight=original_weight))
+        else:
+            # Recursively apply this function to submodules
+            init_lora(module, original_linear_weights, original_embedding_weights, task_config)
+
 
 def add_compress_lora(model, task_config):
     for name, module in model.named_children():
