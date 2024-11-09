@@ -192,8 +192,11 @@ class CompressLLM(torch.nn.Module):
         
         # ->LlamaForCausalLM->LlamaModel->embed_tokens
         # todo:1.
-        mask = {"lm_mask": torch.ones_like(inputs['input_ids'])}
-        inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
+        if "use_multi_lora" in self.task_config:
+            mask = {"lm_mask": torch.ones_like(inputs['input_ids'])}
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
+        else:
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
         bsz, seq_len, emb_size = inputs_embeds.size()
         mem_size = self.mem_tokens.size(0)
         expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
@@ -208,22 +211,35 @@ class CompressLLM(torch.nn.Module):
 
         # make three masks：cl_mask、lm_mask、cl_prime_mask
         # todo:2.
-        mask = make_masks(inputs_embeds, expand_mem)
-        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        if "wo_pe" in self.task_config:
-            # print("no pe in here")
-            outputs = self.model(
-                inputs_embeds=encode_inputs_embeds,
-                output_hidden_states=True,
-                mask=mask,
-            )
+        if "use_multi_lora" in self.task_config:
+            mask = make_masks(inputs_embeds, expand_mem)
+            # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+            if "wo_pe" in self.task_config:
+                # print("no pe in here")
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                    mask=mask,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                    mask=mask,
+                )
         else:
-            outputs = self.model(
-                position_ids=encode_position_ids,
-                inputs_embeds=encode_inputs_embeds,
-                output_hidden_states=True,
-                mask=mask,
-            )
+            if "wo_pe" in self.task_config:
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
 
         hidden_states = outputs.hidden_states[-1]
         
@@ -242,8 +258,11 @@ class CompressLLM(torch.nn.Module):
             # print("lm_targets will be used")
             # [B,seq_len-1] -> [B,seq_len-1,E]
             # todo:3.
-            mask = {"lm_mask": torch.ones_like(inputs['lm_targets'][:, :-1])}
-            lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:,:-1], mask)
+            if "use_multi_lora" in self.task_config:
+                mask = {"lm_mask": torch.ones_like(inputs['lm_targets'][:, :-1])}
+                lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:, :-1], mask)
+            else:
+                lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:, :-1])
 
             # [1,E] -> [1,1,E] -> [B,1,E]
             expand_lm_token = self.special_tokens[1:2].unsqueeze(0).expand(bsz, 1, emb_size)
@@ -252,19 +271,30 @@ class CompressLLM(torch.nn.Module):
             lm_emb = torch.cat([mem_hidden, expand_lm_token,lm_target_emb],dim=1)
             lm_position_ids = torch.cat([mem_position_ids,position_ids+seq_len-1],dim=1)
             # todo:4.
-            mask = make_masks(torch.cat([expand_lm_token, lm_target_emb], dim=1), mem_hidden, compress_prime_token=True)
-
-            if "wo_pe" in self.task_config:
-                outputs = self.model(
-                inputs_embeds=lm_emb,
-                mask=mask,
-            )
+            if "use_multi_lora" in self.task_config:
+                mask = make_masks(torch.cat([expand_lm_token, lm_target_emb], dim=1), mem_hidden,
+                                  compress_prime_token=True)
+                if "wo_pe" in self.task_config:
+                    outputs = self.model(
+                        inputs_embeds=lm_emb,
+                        mask=mask,
+                    )
+                else:
+                    outputs = self.model(
+                        position_ids=lm_position_ids,
+                        inputs_embeds=lm_emb,
+                        mask=mask,
+                    )
             else:
-                outputs = self.model(
-                position_ids=lm_position_ids,
-                inputs_embeds=lm_emb,
-                mask=mask,
-            )
+                if "wo_pe" in self.task_config:
+                    outputs = self.model(
+                        inputs_embeds=lm_emb,
+                    )
+                else:
+                    outputs = self.model(
+                        position_ids=lm_position_ids,
+                        inputs_embeds=lm_emb,
+                    )
 
             # [B,mem_size+S,V] -> [B,S,V]
             logits = outputs.logits[:,mem_size:]
@@ -401,8 +431,11 @@ class CompressLLM(torch.nn.Module):
 
     def cl_inference(self, inputs, segment_size):
         # ->LlamaForCausalLM->LlamaModel->embed_tokens
-        mask = {"lm_mask": torch.ones_like(inputs['lm_targets'])}
-        inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
+        if "use_multi_lora" in self.task_config:
+            mask = {"lm_mask": torch.ones_like(inputs['lm_targets'])}
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
+        else:
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
         bsz, seq_len, emb_size = inputs_embeds.size()
         mem_size = self.mem_tokens.size(0)
         expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
@@ -415,22 +448,35 @@ class CompressLLM(torch.nn.Module):
         # [1,seq_len+mem_size]
         encode_position_ids = torch.cat([position_ids, mem_position_ids],dim=1)
 
-        mask = make_masks(inputs_embeds, expand_mem)
-        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        if "wo_pe" in self.task_config:
-            # print("no pe in here")
-            outputs = self.model(
-                inputs_embeds=encode_inputs_embeds,
-                output_hidden_states=True,
-                mask=mask,
-            )
+        if "use_multi_lora" in self.task_config:
+            mask = make_masks(inputs_embeds, expand_mem)
+            # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+            if "wo_pe" in self.task_config:
+                # print("no pe in here")
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                    mask=mask,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                    mask=mask,
+                )
         else:
-            outputs = self.model(
-                position_ids=encode_position_ids,
-                inputs_embeds=encode_inputs_embeds,
-                output_hidden_states=True,
-                mask=mask,
-            )
+            if "wo_pe" in self.task_config:
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
 
         hidden_states = outputs.hidden_states[-1]
 
@@ -536,17 +582,25 @@ def get_model_for_compress(model_id, task_config, rank):
     #     bnb_4bit_compute_dtype=torch.bfloat16,
     # )
     # todo:5.
-    modify_llama()
-    model = CompressLLM(
-        model_id,
-        mem_size=task_config["mem_size"],
-        head_num=task_config["head_num"],
-        device_rank=rank,
-        task_config=task_config
-    )
-    # model = prepare_model_for_kbit_training(model)
-    # add_compress_lora(model, task_config)
-    add_multi_lora(model, task_config)
+    if "use_multi_lora" in task_config:
+        modify_llama()
+        model = CompressLLM(
+            model_id,
+            mem_size=task_config["mem_size"],
+            head_num=task_config["head_num"],
+            device_rank=rank,
+            task_config=task_config
+        )
+        add_multi_lora(model, task_config)
+    else:
+        model = CompressLLM(
+            model_id,
+            mem_size=task_config["mem_size"],
+            head_num=task_config["head_num"],
+            device_rank=rank,
+            task_config=task_config
+        )
+        add_compress_lora(model, task_config)
     return model
 
 
