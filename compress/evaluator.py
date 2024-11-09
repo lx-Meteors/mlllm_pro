@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import torch
 from tqdm import tqdm
 from torch.nn import CrossEntropyLoss
+from transformers import AutoTokenizer
 from transformers.models.llama.configuration_llama import LlamaConfig
 from transformers.models.llama.modeling_llama import LlamaForCausalLM
 import numpy as np
@@ -120,16 +121,18 @@ class Evaluator:
                 output = model(inputs=inputs)
                 
                 
-                generate_text = model.ae_inference(inputs,generate_num=task_config["segment_size"])
+                generate_text = "model.ae_inference(inputs,generate_num=task_config)"
+                cl_generate_text = model.cl_inference(inputs,segment_size=task_config["segment_size"])
                 # print(inputs['ae_targets'].size())
                 # print("teacher forcing generate:", torch.argmax(output["logits"], dim=-1).tolist()) # B,S,V -> B,S
                 # print("Auto-regressive generate:", generate_text)
                 # print("target:", inputs['ae_targets'].tolist())
-                
+                cl_acc = cal_cl_token_acc(inputs['compress_targets'].tolist(), cl_generate_text, self.work_dir)
                 bleu4 = sentence_bleu([inputs['ae_targets'].tolist()], generate_text, weights=(0.25, 0.25, 0.25, 0.25))
                 # print(f"BLEU-4:",bleu4*100)
                 
                 output["loss_info"]["bleu4"] = bleu4
+                output["loss_info"]["cl_acc"] = cl_acc
                 if "compress_loss" not in output["loss_info"]:
                     output["loss_info"]["compress_loss"]=-1
 
@@ -142,12 +145,14 @@ class Evaluator:
         compress_loss_values = [entry["compress_loss"] for entry in info_list]
         lm_loss_values = [entry["lm_loss"] for entry in info_list]
         bleu4_values = [entry["bleu4"] for entry in info_list]
-        
+        cl_acc_values = [entry["cl_acc"] for entry in info_list]
+
         avg_ae_loss = np.mean(ae_loss_values)
         avg_compress_loss = np.mean(compress_loss_values)
         avg_lm_loss = np.mean(lm_loss_values)
         avg_bleu4 = np.mean(bleu4_values)
-        logging.info(f"avg_ae_loss:{avg_ae_loss}, avg_compress_loss:{avg_compress_loss}, avg_lm_loss:{avg_lm_loss}, avg_bleu4:{avg_bleu4}")
+        avg_cl_acc = np.mean(cl_acc_values)
+        logging.info(f"avg_ae_loss:{avg_ae_loss}, avg_compress_loss:{avg_compress_loss}, avg_lm_loss:{avg_lm_loss}, avg_bleu4:{avg_bleu4}, avg_cl_acc:{avg_cl_acc}")
         
         
         
@@ -158,6 +163,28 @@ class Evaluator:
             self.draw_loss()
             self.draw_ema_loss(alpha=0.1)
         self.evaluate(rank)
+
+def cal_cl_token_acc(input_ids, cl_generate_ids, work_dir):
+    info_list = []
+    with open(work_dir + "/config.json") as f:
+        config = json.load(f)
+
+    tokenizer = AutoTokenizer.from_pretrained(config["data_config"]["model_id"],
+                                              token=config["data_config"]["hf_token"])
+    correct_tokens = 0
+    total_tokens = len(input_ids)
+
+    cl_generate_text = tokenizer.decode(cl_generate_ids, skip_special_tokens=True)
+    cl_generate_ids = tokenizer(cl_generate_text, add_special_tokens=False)["input_ids"]
+    input_text = tokenizer.decode(input_ids, skip_special_tokens=True)
+    correct_tokens += sum(1 for o,d in zip(input_ids, cl_generate_ids) if o == d)
+    cl_acc = correct_tokens / total_tokens
+    info_list.append({"input_text": input_text,
+                      "cl_generate_text": cl_generate_text})
+    with open(work_dir+f'/pre-training_cl_generate_text.json', 'a', encoding='utf-8') as f:
+        json.dump(info_list, f, ensure_ascii=False, indent=4)
+        f.write("\n")
+    return cl_acc
 
 
 def evaluate(rank, args, world_size):
@@ -199,15 +226,17 @@ if __name__ == "__main__":
     compress_loss_values = [entry["compress_loss"] for entry in info_list]
     lm_loss_values = [entry["lm_loss"] for entry in info_list]
     bleu4_values = [entry["bleu4"] for entry in info_list]
-    
+    cl_acc_values = [entry["cl_acc"] for entry in info_list]
+
     avg_ae_loss = np.mean(ae_loss_values)
     avg_compress_loss = np.mean(compress_loss_values)
     avg_lm_loss = np.mean(lm_loss_values)
     avg_bleu4 = np.mean(bleu4_values)
-    print(f"avg_ae_loss:{avg_ae_loss}, avg_compress_loss:{avg_compress_loss}, avg_lm_loss:{avg_lm_loss}, avg_bleu4:{avg_bleu4}")
+    avg_cl_acc = np.mean(cl_acc_values)
+    print(f"avg_ae_loss:{avg_ae_loss}, avg_compress_loss:{avg_compress_loss}, avg_lm_loss:{avg_lm_loss}, avg_bleu4:{avg_bleu4}, avg_cl_acc:{avg_cl_acc}")
 
     with open(args.work_dir+f'/brief_eval_info.json', 'w', encoding='utf-8') as f:
-        json.dump(f"avg_ae_loss:{avg_ae_loss}, avg_compress_loss:{avg_compress_loss}, avg_lm_loss:{avg_lm_loss}, avg_bleu4:{avg_bleu4}", f, ensure_ascii=False)
+        json.dump(f"avg_ae_loss:{avg_ae_loss}, avg_compress_loss:{avg_compress_loss}, avg_lm_loss:{avg_lm_loss}, avg_bleu4:{avg_bleu4}, avg_cl_acc:{avg_cl_acc}", f, ensure_ascii=False)
 
 """
 python ./evaluator.py --work_dir CompressLLM --batch_size 1
