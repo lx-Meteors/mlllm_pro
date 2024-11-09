@@ -34,8 +34,8 @@ logging.basicConfig(
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--work_dir', type=str, required=True, help='Directory including the configuration file, for saving model')
-    parser.add_argument('--port', type=str, required=True, help='port for ddp training')
+    parser.add_argument('--work_dir', type=str, default='compressLLM_multi_lora_510_ratio-5_lm',required=False, help='Directory including the configuration file, for saving model')
+    parser.add_argument('--port', type=str, default='14527', required=False, help='port for ddp training')
     return parser.parse_args()
 
 
@@ -98,7 +98,7 @@ def count_parameters(model, config):
 def train(rank, args, world_size):
 
     if rank==0:
-        wandb.init(project="local-experiment")
+        wandb.init(project="local-experiment", mode="disabled")
 
     
     with open(args.work_dir+"/config.json") as f:
@@ -144,7 +144,8 @@ def train(rank, args, world_size):
     if rank == 0:
         count_parameters(model, config)
     
-    ddp_model = DDP(model, device_ids=[rank])
+    ddp_model = DDP(model, device_ids=[rank], find_unused_parameters=True)
+    # ddp_model = model
 
     # Instantiate the data loader
     dataset = get_dataset(task_config["task_type"], train_examples, training_config['batch_size_per_device'])    
