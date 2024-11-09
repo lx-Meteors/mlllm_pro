@@ -8,7 +8,118 @@ import torch.nn.functional as F
 import math
 import transformers
 
+from modify_code import modify_llama
+
+
 # from peft import prepare_model_for_kbit_training
+class TripleLinearLoraLayer(nn.Module):
+    def __init__(self, in_features, out_features, r_cl=16, r_lm=16, r_cl_prime=16, scale=1.0, weight=None):
+        super(TripleLinearLoraLayer, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.scale = 2  # Scaling factor
+
+        # 原始权重矩阵 W
+        self.weight = nn.Parameter(weight, requires_grad=False)
+
+        # 压缩 token 的 LoRA 模块参数 (A_cl, B_cl)
+        self.lora_A_cl = nn.Parameter(torch.zeros((in_features, r_cl), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+        self.lora_B_cl = nn.Parameter(torch.zeros((r_cl, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+
+        # LLM token 的 LoRA 模块参数 (A_lm, B_lm)
+        self.lora_A_lm = nn.Parameter(torch.zeros((in_features, r_lm), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+        self.lora_B_lm = nn.Parameter(torch.zeros((r_lm, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+
+        # 额外的压缩 token 的 LoRA 模块参数 (A_cl', B_cl')
+        self.lora_A_cl_prime = nn.Parameter(torch.zeros((in_features, r_cl_prime), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+        self.lora_B_cl_prime = nn.Parameter(torch.zeros((r_cl_prime, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+
+        # 初始化 LoRA 参数
+        nn.init.kaiming_uniform_(self.lora_A_cl, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B_cl)
+        nn.init.kaiming_uniform_(self.lora_A_lm, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B_lm)
+        nn.init.kaiming_uniform_(self.lora_A_cl_prime, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B_cl_prime)
+
+    def forward(self, x, mask):
+        # 原始权重的计算结果，只计算一次
+        result = F.linear(x, self.weight)
+
+        # 检查并应用每种 mask
+        if "cl_mask" in mask:
+            x_cl = x * mask["cl_mask"]
+            result_cl = self.scale * (x_cl @ self.lora_A_cl @ self.lora_B_cl)
+            result += result_cl
+
+        if "lm_mask" in mask:
+            x_lm = x * mask["lm_mask"]
+            result_lm = self.scale * (x_lm @ self.lora_A_lm @ self.lora_B_lm)
+            result += result_lm
+
+        if "cl_prime_mask" in mask:
+            x_cl_prime = x * mask["cl_prime_mask"]
+            result_cl_prime = self.scale * (x_cl_prime @ self.lora_A_cl_prime @ self.lora_B_cl_prime)
+            result += result_cl_prime
+
+        return result
+
+class TripleEmbeddingLoraLayer(nn.Module):
+    def __init__(self, in_features, out_features, padding_idx, r_cl=128, r_lm=128, r_cl_prime=128, scale=1.0, weight=None):
+        super(TripleEmbeddingLoraLayer, self).__init__()
+        self.num_embeddings = in_features
+        self.embedding_dim = out_features
+        self.padding_idx = padding_idx
+        self.scale = 2  # Scaling factor
+
+        # 原始权重矩阵 W
+        self.weight = nn.Parameter(weight, requires_grad=False)
+
+        # 压缩 token 的 LoRA 模块参数 (A_cl, B_cl)
+        self.lora_A_cl = nn.Parameter(torch.zeros((in_features, r_cl), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+        self.lora_B_cl = nn.Parameter(torch.zeros((r_cl, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+
+        # LLM token 的 LoRA 模块参数 (A_lm, B_lm)
+        self.lora_A_lm = nn.Parameter(torch.zeros((in_features, r_lm), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+        self.lora_B_lm = nn.Parameter(torch.zeros((r_lm, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+
+        # 额外的压缩 token 的 LoRA 模块参数 (A_cl', B_cl')
+        self.lora_A_cl_prime = nn.Parameter(torch.zeros((in_features, r_cl_prime), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+        self.lora_B_cl_prime = nn.Parameter(torch.zeros((r_cl_prime, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+
+        # 初始化 LoRA 参数
+        nn.init.zeros_(self.lora_A_cl)
+        nn.init.normal_(self.lora_B_cl)
+        nn.init.zeros_(self.lora_A_lm)
+        nn.init.normal_(self.lora_B_lm)
+        nn.init.zeros_(self.lora_A_cl_prime)
+        nn.init.normal_(self.lora_B_cl_prime)
+
+    def forward(self, x, mask):
+        # 计算一次嵌入的基准结果
+        result = F.embedding(x, self.weight, self.padding_idx)  # 初始化结果
+
+        # 检查每个 mask 并应用相应的 LoRA 层
+        if "cl_mask" in mask:
+            x_cl = x * mask["cl_mask"]
+            after_A_cl = F.embedding(x_cl, self.lora_A_cl, self.padding_idx)
+            result_cl = self.scale * (after_A_cl @ self.lora_B_cl)
+            result += result_cl
+
+        if "lm_mask" in mask:
+            x_lm = x * mask["lm_mask"]
+            after_A_lm = F.embedding(x_lm, self.lora_A_lm, self.padding_idx)
+            result_lm = self.scale * (after_A_lm @ self.lora_B_lm)
+            result += result_lm
+
+        if "cl_prime_mask" in mask:
+            x_cl_prime = x * mask["cl_prime_mask"]
+            after_A_cl_prime = F.embedding(x_cl_prime, self.lora_A_cl_prime, self.padding_idx)
+            result_cl_prime = self.scale * (after_A_cl_prime @ self.lora_B_cl_prime)
+            result += result_cl_prime
+
+        return result
+
 
 class LinearLoraLayer(nn.Module):
     # No bias in LLama3 LinearLayer
@@ -80,7 +191,9 @@ class CompressLLM(torch.nn.Module):
     def forward(self,inputs):
         
         # ->LlamaForCausalLM->LlamaModel->embed_tokens
-        inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
+        # todo:1.
+        mask = {"lm_mask": torch.ones_like(inputs['input_ids'])}
+        inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
         bsz, seq_len, emb_size = inputs_embeds.size()
         mem_size = self.mem_tokens.size(0)
         expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
@@ -93,18 +206,23 @@ class CompressLLM(torch.nn.Module):
         # [1,seq_len+mem_size]
         encode_position_ids = torch.cat([position_ids,mem_position_ids],dim=1)
 
+        # make three masks：cl_mask、lm_mask、cl_prime_mask
+        # todo:2.
+        mask = make_masks(inputs_embeds, expand_mem)
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         if "wo_pe" in self.task_config:
             # print("no pe in here")
             outputs = self.model(
                 inputs_embeds=encode_inputs_embeds,
                 output_hidden_states=True,
+                mask=mask,
             )
         else:
             outputs = self.model(
                 position_ids=encode_position_ids,
                 inputs_embeds=encode_inputs_embeds,
                 output_hidden_states=True,
+                mask=mask,
             )
 
         hidden_states = outputs.hidden_states[-1]
@@ -123,7 +241,9 @@ class CompressLLM(torch.nn.Module):
         if 'lm_targets' in inputs:
             # print("lm_targets will be used")
             # [B,seq_len-1] -> [B,seq_len-1,E]
-            lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:,:-1])
+            # todo:3.
+            mask = {"lm_mask": torch.ones_like(inputs['lm_targets'][:, :-1])}
+            lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:,:-1], mask)
 
             # [1,E] -> [1,1,E] -> [B,1,E]
             expand_lm_token = self.special_tokens[1:2].unsqueeze(0).expand(bsz, 1, emb_size)
@@ -131,15 +251,19 @@ class CompressLLM(torch.nn.Module):
             #                     [B,mem_size,E];     [B,1,E];      [B,seq_len-1,E]
             lm_emb = torch.cat([mem_hidden, expand_lm_token,lm_target_emb],dim=1)
             lm_position_ids = torch.cat([mem_position_ids,position_ids+seq_len-1],dim=1)
-            
+            # todo:4.
+            mask = make_masks(torch.cat([expand_lm_token, lm_target_emb], dim=1), mem_hidden, compress_prime_token=True)
+
             if "wo_pe" in self.task_config:
                 outputs = self.model(
-                inputs_embeds=lm_emb
+                inputs_embeds=lm_emb,
+                mask=mask,
             )
             else:
                 outputs = self.model(
                 position_ids=lm_position_ids,
-                inputs_embeds=lm_emb
+                inputs_embeds=lm_emb,
+                mask=mask,
             )
 
             # [B,mem_size+S,V] -> [B,S,V]
@@ -275,6 +399,80 @@ class CompressLLM(torch.nn.Module):
         return generate_text
 
 
+    def cl_inference(self, inputs, segment_size):
+        # ->LlamaForCausalLM->LlamaModel->embed_tokens
+        mask = {"lm_mask": torch.ones_like(inputs['lm_targets'])}
+        inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
+        bsz, seq_len, emb_size = inputs_embeds.size()
+        mem_size = self.mem_tokens.size(0)
+        expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
+        encode_inputs_embeds = torch.cat([inputs_embeds, expand_mem],dim=1)
+
+        # [1,seq_len]
+        position_ids = torch.arange(1, seq_len+1, device=inputs_embeds.device).unsqueeze(0)
+        # [1,mem_size]
+        mem_position_ids = torch.arange((self.head_num+1)//2, segment_size+1, step=self.head_num, device=inputs_embeds.device).unsqueeze(0)
+        # [1,seq_len+mem_size]
+        encode_position_ids = torch.cat([position_ids, mem_position_ids],dim=1)
+
+        mask = make_masks(inputs_embeds, expand_mem)
+        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+        if "wo_pe" in self.task_config:
+            # print("no pe in here")
+            outputs = self.model(
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+                mask=mask,
+            )
+        else:
+            outputs = self.model(
+                position_ids=encode_position_ids,
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+                mask=mask,
+            )
+
+        hidden_states = outputs.hidden_states[-1]
+
+        # [B,mem_size,emb_size]
+        mem_hidden = hidden_states[:,-mem_size:]
+        # [B,mem_size,emb_size] -> [B,mem_size,head_num*vocab_size]
+        logits = self.compress_head(mem_hidden).float()
+        # [B*mem_size*head_num,vocab_size]
+        logits = logits.contiguous().view(-1, self.vocab_size)
+        # [b*m*h,v] -> [b*m*h]
+        generate_text = torch.argmax(logits, dim=-1).tolist()
+
+        return generate_text
+
+
+def make_masks(input_token=None, compress_token=None, compress_prime_token=False):
+    # make three masks：cl_mask、lm_mask、cl_prime_mask
+    mask = {}
+    if compress_prime_token:
+        lm_zero_mask = torch.zeros_like(compress_token, dtype=torch.bfloat16).to(input_token.device)
+        lm_ones_mask = torch.ones_like(input_token, dtype=torch.bfloat16).to(input_token.device)
+        lm_mask = torch.cat([lm_zero_mask, lm_ones_mask], dim=1).to(input_token.device)
+
+        cl_prime_ones_mask = torch.ones_like(compress_token, dtype=torch.bfloat16).to(input_token.device)
+        cl_prime_zero_mask = torch.zeros_like(input_token, dtype=torch.bfloat16).to(input_token.device)
+        cl_prime_mask = torch.cat([cl_prime_ones_mask, cl_prime_zero_mask], dim=1).to(input_token.device)
+
+        mask.update({"cl_prime_mask": cl_prime_mask, "lm_mask": lm_mask,})
+    else:
+        cl_zero_mask = torch.zeros_like(input_token, dtype=torch.bfloat16).to(input_token.device)
+        cl_ones_mask = torch.ones_like(compress_token, dtype=torch.bfloat16).to(input_token.device)
+        cl_mask = torch.cat([cl_zero_mask, cl_ones_mask], dim=1).to(input_token.device)
+
+        lm_ones_mask = torch.ones_like(input_token, dtype=torch.bfloat16).to(input_token.device)
+        lm_zero_mask = torch.zeros_like(compress_token, dtype=torch.bfloat16).to(input_token.device)
+        lm_mask = torch.cat([lm_ones_mask, lm_zero_mask], dim=1).to(input_token.device)
+
+        mask.update({"cl_mask": cl_mask, "lm_mask": lm_mask,})
+    return mask
+
+
+
 def save_adapter(model,save_path_and_name='adapter.pt', log=False):
     adapter_name = set()
     for name, param in model.named_parameters():
@@ -317,7 +515,19 @@ def get_model_for_compress(model_id, task_config, rank):
                 # Recursively apply this function to submodules
                 add_compress_lora(module, task_config)
 
-    
+    def add_multi_lora(model, task_config):
+        for name, module in model.named_children():
+            if name == "compress_head":
+                continue
+            if isinstance(module, nn.Linear):
+                setattr(model, name,
+                        TripleLinearLoraLayer(module.in_features, module.out_features, weight=module.weight.data.clone()))
+            elif isinstance(module, nn.Embedding):
+                setattr(model, name, TripleEmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx,
+                                                        weight=module.weight.data.clone()))
+            else:
+                # Recursively apply this function to submodules
+                add_multi_lora(module, task_config)
 
     # config = BitsAndBytesConfig(
     #     load_in_4bit=True,
@@ -325,6 +535,8 @@ def get_model_for_compress(model_id, task_config, rank):
     #     bnb_4bit_use_double_quant=True,
     #     bnb_4bit_compute_dtype=torch.bfloat16,
     # )
+    # todo:5.
+    modify_llama()
     model = CompressLLM(
         model_id,
         mem_size=task_config["mem_size"],
@@ -333,7 +545,8 @@ def get_model_for_compress(model_id, task_config, rank):
         task_config=task_config
     )
     # model = prepare_model_for_kbit_training(model)
-    add_compress_lora(model, task_config)
+    # add_compress_lora(model, task_config)
+    add_multi_lora(model, task_config)
     return model
 
 
