@@ -111,7 +111,7 @@ class Evaluator:
         loader = DataLoader(dataset, batch_size=None)
         
         model = get_model(training_config["model_id"], task_config, rank)
-        if "use_merge_lora" in task_config:
+        if task_config["use_merge_lora"]:
             model = load_adapter_to_merge_weight(model, train_adapter=self.work_dir + '/adapter.pt', instruction_adapter=self.work_dir + '/instruction_adapter.pt',is_train=False)
         else:
             model = load_adapter(model, save_path_and_name=self.work_dir+'/instruction_adapter.pt', log=False)

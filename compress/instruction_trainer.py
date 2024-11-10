@@ -141,7 +141,7 @@ def train(rank, args, world_size):
     
     # Instantiate the model and move it to the corresponding GPU
     model = get_model(training_config["model_id"], task_config, rank)
-    if "use_merge_lora" in task_config:
+    if task_config["use_merge_lora"]:
         model = load_adapter_to_merge_weight(model, train_adapter=args.work_dir+'/adapter.pt', is_train=True)
     else:
         model = load_adapter(model, save_path_and_name=args.work_dir+'/adapter.pt', log=False)
