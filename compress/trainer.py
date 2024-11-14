@@ -53,8 +53,19 @@ def training_step(ddp_model, inputs, rank, accumulation_steps):
     loss = output["loss"]
     loss /= accumulation_steps
     loss.backward()
+    # 计算当前的梯度范数
+    grad_norm = calculate_gradient_norm(ddp_model)
+    output["loss_info"]["grad_norm"] = grad_norm
     return output["loss_info"]
 
+def calculate_gradient_norm(model):
+    total_norm = 0.0
+    for param in model.parameters():
+        if param.grad is not None:  # 检查梯度是否存在
+            param_norm = param.grad.data.norm(2)  # 计算每个参数梯度的L2范数
+            total_norm += param_norm.item() ** 2  # 累加每个梯度范数的平方
+    total_norm = total_norm ** 0.5  # 求平方根得到整体L2范数
+    return total_norm
 
 def count_parameters(model, config):
     total_params = sum(p.numel() for p in model.parameters())

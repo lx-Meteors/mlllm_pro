@@ -57,7 +57,7 @@ def training_step(ddp_model, inputs, rank, accumulation_steps):
     loss.backward()
     # 计算当前的梯度范数
     grad_norm = calculate_gradient_norm(ddp_model)
-    output["loss_info"]["lm_loss_grad_norm"] = grad_norm
+    output["loss_info"]["grad_norm"] = grad_norm
     return output["loss_info"]
 
 
