@@ -98,7 +98,7 @@ def count_parameters(model, config):
 def train(rank, args, world_size):
 
     if rank==0:
-        wandb.init(project="local-experiment", mode="disabled")
+        wandb.init(project="local-experiment", entity="1762204162-")
 
     
     with open(args.work_dir+"/config.json") as f:
@@ -263,6 +263,9 @@ def train(rank, args, world_size):
 if __name__ == "__main__":
     args = parse_args()
     world_size = torch.cuda.device_count()
+
+    if os.path.exists(args.work_dir+f'/adapter.pt'):
+        exit(0)
     mp.spawn(train,
              args=(args,world_size),
              nprocs=world_size,

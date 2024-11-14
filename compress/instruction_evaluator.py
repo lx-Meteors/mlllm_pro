@@ -216,7 +216,7 @@ if __name__ == "__main__":
     args = parse_args()
     world_size = torch.cuda.device_count()
 
-    if not os.path.exists(args.work_dir+f'/instruction_eval_info_list_9.json'):
+    if not os.path.exists(args.work_dir+f'/instruction_eval_info_list_0.json'):
         mp.spawn(evaluate,
                 args=(args,world_size),
                 nprocs=world_size,

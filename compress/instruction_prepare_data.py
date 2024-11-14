@@ -57,7 +57,7 @@ def get_ids(examples_list, tokenizer, min_len, split):
         # decoded_outputs = tokenizer.decode(all_response_ids, skip_special_tokens=False)
         # print("inputs:|", decoded_inputs)
         # print("outputs:|", decoded_outputs)
-
+        # # 生成 instruction_target，它是一个标签，用来指导模型学习预测目标
         instruction_target = [-100 for x in all_prompt_ids] + [x for x in all_response_ids]
         instruction_target = instruction_target[1:]
 
@@ -70,7 +70,7 @@ def get_ids(examples_list, tokenizer, min_len, split):
         maxn = max(maxn, len(all_ids))
 
         inputs = torch.LongTensor(all_ids[:min_len])
-
+        # 如果是训练的时候？
         if len(all_ids) >= min_len+2:  # will drop the end token and leave one token
             lm_target = torch.LongTensor(all_ids[min_len:])
         else:

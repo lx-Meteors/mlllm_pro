@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.optim import optimizer
 from torch.utils.data import DataLoader, Dataset, IterableDataset
 import torch.multiprocessing as mp
 import os
@@ -54,8 +55,20 @@ def training_step(ddp_model, inputs, rank, accumulation_steps):
     loss = output["loss"]
     loss /= accumulation_steps
     loss.backward()
+    # 计算当前的梯度范数
+    grad_norm = calculate_gradient_norm(ddp_model)
+    output["loss_info"]["lm_loss_grad_norm"] = grad_norm
     return output["loss_info"]
 
+
+def calculate_gradient_norm(model):
+    total_norm = 0.0
+    for param in model.parameters():
+        if param.grad is not None:  # 检查梯度是否存在
+            param_norm = param.grad.data.norm(2)  # 计算每个参数梯度的L2范数
+            total_norm += param_norm.item() ** 2  # 累加每个梯度范数的平方
+    total_norm = total_norm ** 0.5  # 求平方根得到整体L2范数
+    return total_norm
 
 def count_parameters(model, config):
     total_params = sum(p.numel() for p in model.parameters())
@@ -99,9 +112,9 @@ def count_parameters(model, config):
 def train(rank, args, world_size):
 
     if rank==0:
-        wandb.init(project="local-experiment",mode="disabled")
+        wandb.init(project="local-experiment", entity="1762204162-")
 
-    
+
     with open(args.work_dir+"/config.json") as f:
         config=json.load(f)
 
@@ -150,6 +163,8 @@ def train(rank, args, world_size):
         count_parameters(model, config)
     
     ddp_model = DDP(model, device_ids=[rank] ,find_unused_parameters=True)
+    # if rank == 0:
+    #     wandb.watch(ddp_model, log="gradients", log_freq=10, log_graph=False)
     # ddp_model = model
     # Instantiate the data loader
     dataset = get_dataset(task_config["task_type"], train_examples, training_config['batch_size_per_device'])    

@@ -23,8 +23,8 @@ from dataloader import get_dataset
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--work_dir', type=str, required=True, help='Directory including the configuration file')
-    parser.add_argument('--batch_size', type=int, required=True, help='total batch size')
+    parser.add_argument('--work_dir', type=str, default="compressLLM_baseline_multi_lora_len-510_ration-5_wo-ae",required=False, help='Directory including the configuration file')
+    parser.add_argument('--batch_size', type=int, default=1,required=False, help='total batch size')
     return parser.parse_args()
 
 class Evaluator:
@@ -172,11 +172,12 @@ def cal_cl_token_acc(input_ids, cl_generate_ids, work_dir):
     tokenizer = AutoTokenizer.from_pretrained(config["data_config"]["model_id"],
                                               token=config["data_config"]["hf_token"])
     correct_tokens = 0
-    total_tokens = len(input_ids)
+    total_tokens = len(cl_generate_ids)
 
     cl_generate_text = tokenizer.decode(cl_generate_ids, skip_special_tokens=True)
     cl_generate_ids = tokenizer(cl_generate_text, add_special_tokens=False)["input_ids"]
     input_text = tokenizer.decode(input_ids, skip_special_tokens=True)
+    input_ids = tokenizer(input_text, add_special_tokens=False)["input_ids"]
     correct_tokens += sum(1 for o,d in zip(input_ids, cl_generate_ids) if o == d)
     cl_acc = correct_tokens / total_tokens
     info_list.append({"input_text": input_text,
