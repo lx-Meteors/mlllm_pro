@@ -14,12 +14,15 @@
     },
     "task_config": {
         "segment_size": 510,
-        "mem_size": 34,
-        "head_num": 15,
+        "mem_size": 102,
+        "head_num": 5,
         "segment_num": 2,
         "task_type": "Compress",
-        "wo_ae": false,
-        "instruction_fine-tuning_add_compress_loss": true
+        "wo_ae": true,
+        "instruction_fine-tuning_add_compress_loss": true,
+        "use_multi_lora": false,
+        "use_merge_lora": false,
+        "use_lm_loss": false
     },
     "data_config": {
         "dataset_repo": "../../dataset/DKYoon/SlimPajama-6B",
@@ -29,8 +32,8 @@
         "model_id": "../../models/TinyLlama/TinyLlama_v1.1",
         "instruction_dataset_repo": "../../dataset/sggetao/PwC"
     },
-    "Total_parameters": 2100680704,
-    "Trainable_parameters": 1000724480,
+    "Total_parameters": 1445459968,
+    "Trainable_parameters": 345503744,
     "Embedding_parameters": 4902912,
-    "non-Embedding_parameters": 995821568
+    "non-Embedding_parameters": 340600832
 }
