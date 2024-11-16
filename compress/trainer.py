@@ -14,7 +14,7 @@ import argparse
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from prepare_data import get_examples
-from modeling import get_model, save_adapter
+from modeling import get_model, save_adapter, load_adapter
 from dataloader import get_dataset
 
 import logging
@@ -34,7 +34,7 @@ logging.basicConfig(
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--work_dir', type=str, default='compressLLM_multi_lora_510_ratio-5_lm',required=False, help='Directory including the configuration file, for saving model')
+    parser.add_argument('--work_dir', type=str, default='compressLLM_pwc_ntp',required=False, help='Directory including the configuration file, for saving model')
     parser.add_argument('--port', type=str, default='14527', required=False, help='port for ddp training')
     return parser.parse_args()
 
@@ -276,6 +276,7 @@ if __name__ == "__main__":
     world_size = torch.cuda.device_count()
 
     if os.path.exists(args.work_dir+f'/adapter.pt'):
+        print("adapter is already exist")
         exit(0)
     mp.spawn(train,
              args=(args,world_size),

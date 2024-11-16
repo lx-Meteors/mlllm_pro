@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -147,6 +149,9 @@ def train(rank, args, world_size):
     start_index = rank * example_num_per_gpu
     end_index = start_index + example_num_per_gpu
     train_examples = train_examples[start_index:end_index]
+    # todo:
+    random.seed(rank)
+    random.shuffle(train_examples)
 
 
     # print(f"[INFO] rank{rank} training examples[{start_index}:{end_index}] | example_nums:{len(train_examples)} | training_steps:{training_steps}")

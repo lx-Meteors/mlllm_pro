@@ -262,7 +262,7 @@ class CompressLLM(torch.nn.Module):
         use_cmp = False
         if "instruction_fine-tuning_add_compress_loss" in self.task_config and self.task_config["instruction_fine-tuning_add_compress_loss"]:
             use_cmp = True
-        # compress loss
+        # compress loss：压缩的是输入的context，并不是prompt和answer
         if use_cmp:
             # print("compress_targets will be used")
             # [B,mem_size,emb_size] -> [B,mem_size,head_num*vocab_size]
@@ -287,11 +287,11 @@ class CompressLLM(torch.nn.Module):
 
 
         # LM loss
-        if 'lm_targets' in inputs:
+        if 'lm_targets' in inputs and self.task_config["use_lm_loss"]:
 
             if inputs['lm_targets'] is None:
                 if original_logits.shape[1] != inputs["instruction_target"].shape[1]: # if only <eos> in next segment, they will be equal.
-                    # no token after <eos> 
+                    # no token after <eos> [context + prompt + answer 510]
                     original_logits = original_logits[:,:-1]
                 logits = original_logits.contiguous().view(-1, self.vocab_size)
                 inputs["instruction_target"] = inputs["instruction_target"].contiguous().view(-1).to(logits.device)
@@ -739,11 +739,11 @@ def load_adapter_to_merge_weight(model, train_adapter='adapter.pt', instruction_
             if name == "compress_head":
                 continue
             if isinstance(module, LinearLoraLayer):
-                nn.init.kaiming_uniform_(module.lora_A, a=math.sqrt(5))
-                nn.init.zeros_(module.lora_B)
+                setattr(model, name,
+                        LinearLoraLayer(module.in_features, module.out_features, r=16, weight=module.weight.data.clone()))
             elif isinstance(module, EmbeddingLoraLayer):
-                nn.init.zeros_(module.lora_A)
-                nn.init.normal_(module.lora_B)
+                setattr(model, name,
+                        EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx, r=128, weight=module.weight.data.clone()))
             else:
                 # Recursively apply this function to submodules
                 init_lora(module, task_config)
@@ -769,7 +769,6 @@ def load_adapter_to_merge_weight(model, train_adapter='adapter.pt', instruction_
         logging.info("evaluator：no merge lora weight to origin")
     return model
 
-
 def get_model_for_compress(model_id, task_config, rank):
     def add_compress_lora(model, task_config):
         for name, module in model.named_children():
@@ -777,9 +776,9 @@ def get_model_for_compress(model_id, task_config, rank):
                 continue
             if isinstance(module, nn.Linear):
                 setattr(model, name,
-                        LinearLoraLayer(module.in_features, module.out_features, weight=module.weight.data.clone()))
+                        LinearLoraLayer(module.in_features, module.out_features, r=512, weight=module.weight.data.clone()))
             elif isinstance(module, nn.Embedding):
-                setattr(model, name, EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx,
+                setattr(model, name, EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx, r=512,
                                                         weight=module.weight.data.clone()))
             else:
                 # Recursively apply this function to submodules
@@ -791,10 +790,10 @@ def get_model_for_compress(model_id, task_config, rank):
                 continue
             if isinstance(module, nn.Linear):
                 setattr(model, name,
-                        TripleLinearLoraLayer(module.in_features, module.out_features, weight=module.weight.data.clone()))
+                        TripleLinearLoraLayer(module.in_features, module.out_features, r_cl=16, r_lm=16, r_cl_prime=16, weight=module.weight.data.clone()))
             elif isinstance(module, nn.Embedding):
                 setattr(model, name, TripleEmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx,
-                                                        weight=module.weight.data.clone()))
+                                                              r_cl=128, r_lm=128, r_cl_prime=128, weight=module.weight.data.clone()))
             else:
                 # Recursively apply this function to submodules
                 add_multi_lora(module, task_config)

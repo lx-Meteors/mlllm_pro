@@ -6,7 +6,7 @@ import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer
 from nltk.translate.bleu_score import sentence_bleu
-work_dir = "../compressLLM_baseline_merge_lora_rank-512_len-510_ratio-5_wo-ae"
+work_dir = "../compressLLM_instruction_rank-512_cl"
 with open(work_dir + f'/config.json') as f:
     config =json.load(f)
 
@@ -32,7 +32,7 @@ def cal_cl_token_acc(input_text, cl_generate_text, tokenizer):
     acc = []
     bleus = []
     for input, decompress in tqdm(zip(input_text, cl_generate_text), desc="Processing examples", total=len(cl_generate_text)):
-        cl_gen_text = decompress.replace("### Context:\n ", "", 1)
+        cl_gen_text = decompress.split("Context:\n ", 1)[-1]
         cl_gen_ids = tokenizer(cl_gen_text, add_special_tokens=False)["input_ids"]
         input_ids = tokenizer(input, add_special_tokens=False)["input_ids"]
 

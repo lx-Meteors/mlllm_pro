@@ -10,7 +10,7 @@ import json
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--work_dir', type=str, required=True, help='Directory including the configuration file')
+    parser.add_argument('--work_dir', type=str, default="compressLLM_pwc_ntp", required=False, help='Directory including the configuration file')
     return parser.parse_args()
 
 

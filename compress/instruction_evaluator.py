@@ -23,7 +23,7 @@ from instruction_dataloader import get_dataset
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--work_dir', type=str, default='compressLLM_multi_lora_510_ratio_lm&cl', required=False, help='Directory including the configuration file')
+    parser.add_argument('--work_dir', type=str, default='compressLLM_test_pro', required=False, help='Directory including the configuration file')
     parser.add_argument('--batch_size', type=int, default=1, required=False, help='total batch size')
     return parser.parse_args()
 
@@ -39,13 +39,14 @@ class Evaluator:
         with open(os.path.join(self.work_dir,"instruction_info.json")) as f:
             info_list=json.load(f)
 
-        lm_loss_values = [entry['training_loss']["lm_loss"] for entry in info_list]
+        lm_loss_values = [-1 if 'lm_loss' not in entry['training_loss'] else entry['training_loss']["lm_loss"] for entry in info_list]
         compress_loss_values = [-1 if 'compress_loss' not in entry['training_loss'] else entry['training_loss']["compress_loss"] for entry in info_list]
         step_values = [entry['steps'] for entry in info_list]
         lr_values = [entry['learning_rate'] for entry in info_list]
         
         plt.figure(figsize=(10, 5))
-        plt.plot(step_values, lm_loss_values, label="lm_loss")
+        if lm_loss_values[0] != -1:
+            plt.plot(step_values, lm_loss_values, label="lm_loss")
         if compress_loss_values[0] != -1:
             plt.plot(step_values, compress_loss_values, label='compress_loss')
 
@@ -71,14 +72,15 @@ class Evaluator:
         with open(os.path.join(self.work_dir,"instruction_info.json")) as f:
             info_list=json.load(f)
 
-        lm_loss_values = [entry['training_loss']["lm_loss"] for entry in info_list]
+        lm_loss_values = [-1 if 'lm_loss' not in entry['training_loss'] else entry['training_loss']["lm_loss"] for entry in info_list]
         compress_loss_values = [-1 if 'compress_loss' not in entry['training_loss'] else entry['training_loss']["compress_loss"] for entry in info_list]
         step_values = [entry['steps'] for entry in info_list]
         lr_values = [entry['learning_rate'] for entry in info_list]
 
         
         plt.figure(figsize=(10, 5))
-        plt.plot(step_values, exponential_moving_average(lm_loss_values,alpha=alpha), label="lm_loss")
+        if lm_loss_values[0] != -1:
+            plt.plot(step_values, exponential_moving_average(lm_loss_values,alpha=alpha), label="lm_loss")
         if compress_loss_values[0]!=-1:
             plt.plot(step_values, exponential_moving_average(compress_loss_values,alpha=alpha), label="compress_loss")
 
@@ -195,7 +197,7 @@ def cal_cl_token_acc(cl_generate_text, examples_list, tokenizer):
     for cl_gen_text, examples in zip(cl_generate_text, examples_list):
         input_text = examples["input"]
         cl_gen_text = tokenizer.decode(cl_gen_text, skip_special_tokens=True)
-        cl_gen_text = cl_gen_text.replace("### Context:\n ", "", 1)
+        cl_gen_text = cl_gen_text.split("Context:\n ", 1)[-1]
         cl_gen_ids = tokenizer(cl_gen_text, add_special_tokens=False)["input_ids"]
         input_ids = tokenizer(input_text, add_special_tokens=False)["input_ids"]
 

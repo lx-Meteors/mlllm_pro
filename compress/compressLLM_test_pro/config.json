@@ -21,8 +21,7 @@
         "wo_ae": true,
         "instruction_fine-tuning_add_compress_loss": true,
         "use_multi_lora": false,
-        "use_merge_lora": false,
-        "use_lm_loss": false
+        "use_merge_lora": false
     },
     "data_config": {
         "dataset_repo": "../../dataset/DKYoon/SlimPajama-6B",

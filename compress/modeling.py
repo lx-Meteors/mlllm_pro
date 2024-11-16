@@ -254,7 +254,7 @@ class CompressLLM(torch.nn.Module):
 
 
         # LM loss
-        if 'lm_targets' in inputs:
+        if 'lm_targets' in inputs and self.task_config["use_lm_loss"]:
             # print("lm_targets will be used")
             # [B,seq_len-1] -> [B,seq_len-1,E]
             # todo:3.
@@ -554,9 +554,9 @@ def get_model_for_compress(model_id, task_config, rank):
             if name == "compress_head":
                 continue
             if isinstance(module, nn.Linear):
-                setattr(model, name, LinearLoraLayer(module.in_features, module.out_features, weight=module.weight.data.clone()))
+                setattr(model, name, LinearLoraLayer(module.in_features, module.out_features, r=512, weight=module.weight.data.clone()))
             elif isinstance(module, nn.Embedding):
-                setattr(model, name, EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx,weight=module.weight.data.clone()))
+                setattr(model, name, EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx, r=512, weight=module.weight.data.clone()))
             else:
                 # Recursively apply this function to submodules
                 add_compress_lora(module, task_config)
@@ -567,10 +567,11 @@ def get_model_for_compress(model_id, task_config, rank):
                 continue
             if isinstance(module, nn.Linear):
                 setattr(model, name,
-                        TripleLinearLoraLayer(module.in_features, module.out_features, weight=module.weight.data.clone()))
+                        TripleLinearLoraLayer(module.in_features, module.out_features,  r_cl=16, r_lm=16, r_cl_prime=16, weight=module.weight.data.clone()))
             elif isinstance(module, nn.Embedding):
-                setattr(model, name, TripleEmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx,
-                                                        weight=module.weight.data.clone()))
+                setattr(model, name,
+                        TripleEmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx,
+                                                              r_cl=128, r_lm=128, r_cl_prime=128, weight=module.weight.data.clone()))
             else:
                 # Recursively apply this function to submodules
                 add_multi_lora(module, task_config)

@@ -25,10 +25,10 @@
         "use_lm_loss": false
     },
     "data_config": {
-        "dataset_repo": "../../dataset/DKYoon/SlimPajama-6B",
+        "dataset_repo": "../../dataset/sggetao/PwC",
         "hf_token": "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",
         "token_num": 1000000000,
-        "min_len": 510,
+        "min_len": 260,
         "model_id": "../../models/TinyLlama/TinyLlama_v1.1",
         "instruction_dataset_repo": "../../dataset/sggetao/PwC"
     },
