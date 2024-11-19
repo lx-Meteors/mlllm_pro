@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -151,7 +153,7 @@ def train(rank, args, world_size):
     
     # Instantiate the model and move it to the corresponding GPU
     model = get_model(training_config["model_id"], task_config, rank)
-
+    # model = load_adapter(model, save_path_and_name=args.work_dir+'/adapter.pt', log=False)
     if rank == 0:
         count_parameters(model, config)
     

@@ -309,8 +309,9 @@ class CompressLLM(torch.nn.Module):
             
             # [1,E] -> [1,1,E] -> [B,1,E]
             expand_lm_token = self.special_tokens[1:2].unsqueeze(0).expand(bsz, 1, emb_size)
-            
-            #                     [B,mem_size,E];     [B,1,E];      [B,seq_len-1,E]
+
+            # todo: 1.将mem_hidden设置为0, .detach()
+            #  [B,mem_size,E];     [B,1,E];      [B,seq_len-1,E]
             lm_emb = torch.cat([mem_hidden, expand_lm_token,lm_target_emb],dim=1)
 
             latter_position_ids = torch.arange(seq_len,seq_len+1+lm_target_emb.size(1),device=inputs_embeds.device).unsqueeze(0)
@@ -776,9 +777,9 @@ def get_model_for_compress(model_id, task_config, rank):
                 continue
             if isinstance(module, nn.Linear):
                 setattr(model, name,
-                        LinearLoraLayer(module.in_features, module.out_features, r=512, weight=module.weight.data.clone()))
+                        LinearLoraLayer(module.in_features, module.out_features, r=16, weight=module.weight.data.clone()))
             elif isinstance(module, nn.Embedding):
-                setattr(model, name, EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx, r=512,
+                setattr(model, name, EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx, r=128,
                                                         weight=module.weight.data.clone()))
             else:
                 # Recursively apply this function to submodules

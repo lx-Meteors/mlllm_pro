@@ -23,7 +23,7 @@ from instruction_dataloader import get_dataset
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--work_dir', type=str, default='compressLLM_test_pro', required=False, help='Directory including the configuration file')
+    parser.add_argument('--work_dir', type=str, default='compressLLM_test', required=False, help='Directory including the configuration file')
     parser.add_argument('--batch_size', type=int, default=1, required=False, help='total batch size')
     return parser.parse_args()
 

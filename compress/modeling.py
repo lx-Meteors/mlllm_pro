@@ -554,9 +554,9 @@ def get_model_for_compress(model_id, task_config, rank):
             if name == "compress_head":
                 continue
             if isinstance(module, nn.Linear):
-                setattr(model, name, LinearLoraLayer(module.in_features, module.out_features, r=512, weight=module.weight.data.clone()))
+                setattr(model, name, LinearLoraLayer(module.in_features, module.out_features, r=16, weight=module.weight.data.clone()))
             elif isinstance(module, nn.Embedding):
-                setattr(model, name, EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx, r=512, weight=module.weight.data.clone()))
+                setattr(model, name, EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx, r=128, weight=module.weight.data.clone()))
             else:
                 # Recursively apply this function to submodules
                 add_compress_lora(module, task_config)

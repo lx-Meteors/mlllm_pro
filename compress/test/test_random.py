@@ -127,6 +127,7 @@ import torch
 #         return result
 
 import torch
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from torch import cosine_similarity
 from tqdm import tqdm
 
@@ -211,15 +212,15 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 # result = text.split(marker, 1)[-1]
 # print(result)  # 输出 " string"
 
-count = 0
-with open(f'../train_instruction_dataset.json', 'r', encoding='utf-8') as f:
-    examples_list = json.load(f)
-    for example in tqdm(examples_list, desc="Processing examples"):
-        count += 1
-        if count < 10000:
-            continue
-        else:
-            print(example)
+# count = 0
+# with open(f'../train_instruction_dataset.json', 'r', encoding='utf-8') as f:
+#     examples_list = json.load(f)
+#     for example in tqdm(examples_list, desc="Processing examples"):
+#         count += 1
+#         if count < 10000:
+#             continue
+#         else:
+#             print(example)
 
 
 
@@ -330,3 +331,37 @@ with open(f'../train_instruction_dataset.json', 'r', encoding='utf-8') as f:
 # HF_ENDPOINT=https://hf-mirror.com HF_DATASETS_OFFLINE=0 HF_HUB_OFFLINE=0 python prepare_data.py --work_dir compressLLM_len-510_ratio-15
 # HF_ENDPOINT=https://hf-mirror.com python prepare_data.py --work_dir compressLLM_len-510_ratio-15
 # """
+
+work_dir = "../compressLLM_random_instruction_(pre-train-multi-lora)_multi-lora_lm&cl"
+with open(work_dir + f'/config.json') as f:
+    config =json.load(f)
+
+config["data_config"]["model_id"] = "../../../models/TinyLlama/TinyLlama_v1.1"
+world_size = torch.cuda.device_count()
+tokenizer = AutoTokenizer.from_pretrained(config["data_config"]["model_id"], token=config["data_config"]["hf_token"])
+
+print("calculate BLEU4...")
+
+
+reference = "Komal Uzair and her brother Shayan completed their summit on the ",
+candidate = "Komal Uzair and her brother Shayan completed their summit on apple",
+
+input_ids = tokenizer(reference, add_special_tokens=False)["input_ids"][0]
+cl_gen_ids = tokenizer(candidate, add_special_tokens=False)["input_ids"][0]
+bleu4 = sentence_bleu([input_ids], cl_gen_ids, weights=(0.25, 0.25, 0.25, 0.25))
+
+
+print(f"BLEU-4 Score: {bleu4}")
+
+
+
+
+
+
+
+
+
+
+
+
+
