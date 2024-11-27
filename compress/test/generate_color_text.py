@@ -1,47 +1,694 @@
-# 原始文本
-# 95
-# 11
-# text1 = "An investment made by Kobe Bryant has yielded more than 30 times its money in fewer than four and a half years.\n\nOn Tuesday, Coca-Cola announced it had purchased a minority stake in sports drink BodyArmor.\n\nBryant made his first investment in the brand, for roughly 10 percent of the company, in March 2014, putting in roughly $6 million over time. Based on the valuation of the Coca-Cola deal, his stake is now worth approximately $200 million, sources told ESPN.\n\nBryant is now the fourth-largest investor in the brand, marketed as a healthier competitor to Gatorade, behind the brand's co-founder Mike Repole, Coca-Cola and Keurig Dr Pepper. When Bryant invested in BodyArmor, the brand had just come off a year of $10 million in sales. BodyArmor is projected to top $400 million in sales in 2018.\n\nKobe Bryant's other March 2014 investment yielded an Oscar for \"Dear Basketball.\" Kevin Winter/Getty Images\n\nBryant, who earned $328 million on the court in his 20-year NBA career and a similar amount off the court over that time, announced his investment in BodyArmor on the same day he announced the start of his new company, Kobe Inc. He since has formed a $100 million joint venture investment firm with entrepreneur Jeff Stibel and started his own production company, Granity Studios, which won an Oscar in 2018 for best animated short for his \"Dear Basketball\" film.\n\nAs part of their endorsement deals, many athletes had equity stakes in BodyArmor. Sources told ESPN that as many as a dozen superstar athletes could also have stakes in BodyArmor worth more than $1 million, including James Harden, Dustin Johnson and Andrew Luck.\n\nCoca-Cola's acquisition is the biggest story in the business of sports drinks since December 2000, when PepsiCo acquired Quaker Oats, which included Gatorade. The deal puts BodyArmor in Coke's powerful distribution network, on their delivery trucks throughout most of the United States.\n\nThis is the second time Repole has sold a company to Coca-Cola. In 2007, Glaceau, a company he co-founded with the smartwater and vitaminwater brands, sold to Coke for $4.1 billion.\n\nBryant's return is the biggest return for a modern-day athlete in the business world in some time. LeBron James made $30 million from a small stake in Beats by Dre when it sold to Apple in May 2014. James and his business partner Maverick Carter put less than $1 million into fast-casual pizza chain Blaze in 2012. That investment is now worth approximately $40 million.\n\n"
-# text2 = "An investment made by K Bry Bryant has hased more than 30 times its money in fewer than four and a half years.\n\nOn Tuesday, Coca-Cola announced it had purchased a minority stake in sports drink.Ar..\n\nBryant made his first investment in the brand, for roughly 10 percent of the company, in March 2014, putting in roughly $6 million over time. based on the valueation of the Coca-Cola deal, his stake is now worth approximately $200 million, sources told ESPN.\n\nBryant is now the fourth- largestest investor in the brand, marketed as a healthier competitor to Gatorade, behind the brand's co-founder Mike Re Re, Coca-Cola and Keurig Dr Pepper. Whenryant invested in\nAr brand, the brand had just come off a year of $10 million in sales.\nAr is is projected to top $400 million in sales in 2018.\n\nKBanant's other March 2014 investment.ed an Oscar for \"Dear basketball.\" Kevin Kevin/Getty Images\n\nBryant, who earned $328 million on the court in his 20-year NBA career and a similar amount off the court over that time, announced his investment in bodyAror on the same day he announced the start of his new company, K. Inc. He since has formed a $100 million joint venture investment firm with entrepreneur Jeff Stibel and started his own production company, Grandity Studios, which won an Academy in 2018 for best animated short for his \"Dear basketball\" film.\n\nAs part of their endorsement deals, many athletes had equity stakes in bodyArAr. Sources told ESPN that as many as a dozen super stars athletes could also have stakes in bodyArAr worth more than $1 million, including James Hard, Dustin Johnson and Andrew Luck.\n\nCoca-ocaa's acquisition is the biggest story in the business of sports drinks since December 2000, when Pe hisCo acquired Quaker Oats, which included Gatorade. The"
-# 41
-# text1 = "Hindus, who urged disciplining of a Northern Ireland Catholic priest who reportedly linked yoga to Satan, are disheartened over the Church’s silence on the issue.\n\nFather Reverend Roland Colhoun, a priest at Waterside Parish of Roman Catholic Diocese of Derry in Northern Ireland, as reported by Derry Journal, “warned parishioners against taking part in yoga” while saying mass in Drumsurn recently. “Yoga is certainly a risk. There’s the spiritual health risk”, Journal quoted him.\n\nUK’s The Independent quoted him as saying “Yoga leads to Satan” and that he fears it could lead to “The Kingdom of Darkness”. “It’s a slippery slope from yoga to Satan”, RT channel said quoting him.\n\nHindu statesman Rajan Zed, in a statement in Nevada (USA) today, said that reports suggested that neither the Vatican and nor the Diocese of Derry Bishop, Most Reverend Donal McKeown, had offered apology on the actions of the priest who just trashed a highly revered and respected ancient practice.\n\nZed, who is President of Universal Society of Hinduism, stressed that although introduced and nourished by Hinduism, yoga was a world heritage and liberation powerhouse being utilized by millions of people of various faith traditions worldwide for achieving physical and mental fitness.\n\nWhy this Derry priest was unnecessarily disparaging yoga whom Patanjali described as “a methodical effort to attain perfection” and about whom US National Institutes of Health indicated: yoga may help one to feel more relaxed, be more flexible, improve posture, breathe deeply, and get rid of stress? Rajan Zed asked.\nZed further said that Bishop McKeown, whose Diocese of Derry was directly responsible for the actions of this priest, should apologize to the hurt worldwide yoga community and clearly state where he stood on this issue. Moreover, Vatican should also clarify its stand on yoga, honestly and transparently.\nYoga, referred as “a living fossil”, was a mental and physical discipline, for everybody to share and benefit from, whose traces went back to around 2,000 BCE to Indus Valley civilization, Rajan Zed pointed out and added that yoga was the repository of something basic in the human soul and psyche."
-# text2 = "Hindus, who urged disining of a Ireland Ireland religious Catholic who reportedly linked ygs to thean, are dis heartened over the Church’s silence on the issue.\n\nFather ReverendR Colhoun, a W at Waterside Parish of Roman Catholicedese of ofry in Northern Ireland, as reported by Denry Journal, “Iedionioners against taking part in y in” while saying mass in Drsurn recently. “Y has is certainly a risk. There’s the religious health risk”, Journal quoted him.\n\nStep’s The/ quoted him as saying “Y leads leads to satan” and that he fears it could lead to “The Kingdom of ofness”. “It’s a slipperyys from y\" to (an”, RT channel said quoting him.\n\nH Muslim statesman Rajan Zed, in a statement in Nevada ( USA) today, said that reports suggested that neither the Vatican and or theineese of derry,, Most Reverend Donal Mc Mown, had offered apology on the actions of the Francis who just tr\n a highly ored and respected practice practice.\n\nZed, who is President of the Society of H toism, stressed that although introduced and nourished by H byism, y\" was a world herity and releasedation powerhouse being utilized by millions of people of various faith traditions worldwide for’ieving physical and mental fitness.\n\nWhy this derry it wasitarilyagesaging y — whom Patanjali described as “a methodical effort to attain perfection” and about whom US Nationalom US of Health indicated: y  may help one to feel more relaxed, be more our, improve posture, breathe she, and get rid of stress? Rajan Zed asked.\n\nZed further said that Church Mckeown, whoseThese of derry was directly responsible for the actions of this apolog, should apologize to the hurt worldwide y community community and clearly state where he stood on this issue. issue, Vatican should also' its stand on y In, honestly and transparently.\n\nYoga, referring as “a living fossil”, was a mental and physical and, for everybody to share and benefit from, whose whose went back to around 2 ### Context:\n for everybody to share and benefit from, whose traces went back to"
 
-# 95
-# text1 = "California State Assemblyman Reggie Jones-Sawyer (D-Paramount) kicked off Tuesday’s confirmation hearing for newly-appointed state Attorney General Xavier Becerra by predicting a “legal war” between California and the Trump administration.\n\nThe San Diego Union-Tribune and other outlets reported that Jones-Sawyer said California faced a “long, legal war” with President-elect Donald Trump after he ran “the most xenophobic campaign in modern history.”\n\n“The incoming president ran the most xenophobic campaign in modern history,” says Assemblyman @JonesSawyer59 in opening of Becerra A hearing — John Myers (@johnmyers) January 10, 2017\n\nBecerra, who is currently a U.S. congressman and prominent member of the Democratic caucus, was nominated to take over as California Attorney General by Gov. Jerry Brown after Kamala Harris won a U.S. Senate seat. She was sworn in last week. Thus far, he has built his candidacy for the job around a promise to resist the policies of the Trump administration, especially on immigration. Separately, the state legislature has retained former U.S. Attorney General Eric Holder for the same purpose — though the constitutionality of that hire is being challenged by Republican State Assemblyman Kevin Kiley (R-Roseville).\n\nBrown introduced Becerra at the State Assembly’s hearing by warning that “there are big battles ahead.” In his own remarks, Becerra voiced an apparently newfound interest in states’ rights, vowing to resist “federal intrusion” in California: “You will find me being as aggressive as possible working with all of you to figure out ways that we can make sure there is no federal intrusion in areas that are really left to the state in the U.S. Constitution,” he said, according to the Los Angeles Times.\n\nImmigration, as Democrats have repeatedly noted, is an area under the exclusive jurisdiction of the federal government.\n\nThe State Assembly panel voted 6-3 on party lines to recommend Becerra’s appointment, the Times reported.\n\nJoel B. Pollak is Senior Editor-at-Large at Breitbart News. He was named one of the “most influential” people in news media in 2016. His new book, How Trump Won: The Inside Story of a Revolution, is available from Regnery. Follow him on Twitter at @joelpollak.\n\n"
-# text2 = "California State Assemblyman Reg people Jones-Sawyer (D-),ount) kicked off Tuesday’s confirmation hearing for new-appointed state Attorney General X X Becerra by predicting a “ legal war” between California and the Trump administration.\n\nThe San Diego Union-Tribune and other outlets reported that Jones-Saw has said California faced a “long, legal war” with President-elect Donald Trump after he ran “the most xenophobic campaign in modern history.”\n\n“TheThe president ran the most xenophobic campaign in modern history,” says Assemblyman @JonesSawyer59 in opening of Becerra A hearing — John Myers (@j onemyers) January 10, 2017\n\nBecerra, who is currently a U.S. congressman and prominent member of the Democratic caucus, was nominated to take over as California Attorney General by Gov. Jerry Brown after Kamala Harris won a U.S. Senate seat. She was sworn in last week. thus far, he has built his hisacy for the job around a promise to to the policies of the Trump administration, especially on immigration. Separately, the state legislature has retain former U.S. Attorney Generalic Hale for the same purpose — though the constitution that of that hire is being challenged by Republican State Assemblyman Kevin Kiley (R-Roseville).\n\nBrown introduced Becerra at the State Assembly’s hearing by warning that “there are big battles ahead.” In his own remarks, Becerra areiced an apparently newfound interest in states’ rights, vowing to resist “fFal intrusion” in California: “You will find me being as aggressive as possible working with all of you to figure out ways that we can make sure there is no federal intrusion in areas that are really left to the state in the U.S. Constitution,” he said, according to the Los Angeles Times.\n\nImmigration, as Democrats have noted noted, is an area under the exclusive exclusive juris of the federal government.\n\nThe State Assembly panel voted 6-3 on party lines to recommend Becerra’s appointment, the Times reported.\n\n Joel B. Polur is senior editor"
-# 3
-text1 = "2017 has been a--packed year for Rare and and of Thieves, and as we position our sils towards that long- longed launch in early 2018, we’re also coming up on a full year of the Sea of Thists Teical Alp. It’s served the game incredibly well and given thousands upon thousands ofdding buccaneers a chance to hit the seas on Xbox One and Windows 10 PC – and we’ll soon be waving good to to the technical Al, in its current form, so this is your final chance to get involved!\n\nWhy sign up now if you haven’t already? Everyone who joins the Insider Programme by the cut-off date of Dec. 1 will be invited to the next play session – our biggest and best yet – with the latest brace of brand new features to test. go, as promised, all eligible insers are now getting their chance to jump in and play Sea of Th is before its release next year.\n\nIt was back in December 2016 that we announced the very first ical Al sessions session, following the kick-off of our Insider programme in November. In the space of a year we’ve scaled up from that first wave of 1,000 players to almost 200,000. We’ve debuted new features fromalletal sentinels to alone ships, welcomed your feedback and used it to balance and finetune all manner of things, honoring our promise to shape Sea of Thieves alongside its community. Now we’re preparing to welcome all those insiders still waiting to take to the waves, plus all new Insiders who sign up between now and Dec. 1.\n\nSo if you haven’t yet pounced on the possibility of playing playing of Thieves early, waste no more time and join the insider staff at the.seaofthieves.com/insider. Our Insiders receive regular updates from the development team through official, posts and newsletters, and of course get the chance to play the game and share their with with us as it continues to evolutionve.\n\nJoining the ins1 Programme is free – you just need to have an Xbox Live account (or set up"
-text2 = "2017 has been a jam-packed year for Rare and Sea of Thieves, and as we angle our sails towards that long-awaited launch in early 2018, we’re also coming up on a full year of the Sea of Thieves Technical Alpha. It’s served the game incredibly well and given thousands upon thousands of budding buccaneers a chance to hit the seas on Xbox One and Windows 10 PC – and we’ll soon be waving goodbye to the Technical Alpha in its current form, so this is your final chance to get involved!\n\nWhy sign up now if you haven’t already? Everyone who joins the Insider Programme by the cut-off date of Dec. 1 will be invited to the next play session – our biggest and best yet – with the latest brace of brand new features to test. Yes, as promised, all eligible Insiders are now getting their chance to jump in and play Sea of Thieves before its release next year.\n\nIt was back in December 2016 that we announced the very first Technical Alpha sessions, following the kick-off of our Insider Programme in November. In the space of a year we’ve scaled up from that first wave of 1,000 players to almost 200,000. We’ve debuted new features from skeletal sentinels to solo ships, welcomed your feedback and used it to balance and finetune all manner of things, honoring our promise to shape Sea of Thieves alongside its community. Now we’re preparing to welcome all those Insiders still waiting to take to the waves, plus all new Insiders who sign up between now and Dec. 1.\n\nSo if you haven’t yet pounced on the possibility of playing Sea of Thieves early, waste no more time and join the Insider crew at www.seaofthieves.com/insider. Our Insiders receive regular updates from the development team through official forum posts and newsletters, and of course get the chance to play the game and share their thoughts with us as it continues to evolve.\n\nJoining the Insider Programme is free – you just need to have an Xbox Live account (or set up a new one) and be 18 years or older to sign the NDA. As Sea of Thieves is an online multiplayer game, Xbox Live Gold membership is also required when sailing the seas on Xbox One. Please remember that these Technical Alpha play sessions are purely for the benefit of our Insiders and are currently under NDA, so they can’t be streamed or captured!\n\nFor more information about the Insider Programme including some details on eligibility, see our FAQ. And stay tuned to official Sea of Thieves and Xbox social channels for an announcement of the big play session date coming up in December.\n\nSee you all on the seas!\n\n"
+import json
+import re
 
-# 对每行文本进行单词级别的比较
-html_content = "<html><body>"
-html_content1 = ""
-html_content2 = ""
-html_content3 = ""
+import numpy
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+import torch
+from torch import nn
+from torch.nn import CrossEntropyLoss
+from transformers.models.llama.modeling_llama import LlamaForCausalLM
+from transformers.modeling_outputs import CausalLMOutputWithPast
+import torch.nn.functional as F
+import math
+import transformers
 
-# 对比每行的差异
-for line1, line2 in zip(text1.splitlines(), text2.splitlines()):
-    html_content1 += "<p>"
-    html_content2 += "<p>"
 
-    # 对比每行的单词
-    for word1, word2 in zip(line1.split(), line2.split()):
-        if word1 != word2:
-            html_content1 += f'<span style="color:red;">{word1}</span> '
-            html_content2 += f'<span style="color:green;">{word2}</span> '
+# from peft import prepare_model_for_kbit_training
+class TripleLinearLoraLayer(nn.Module):
+    def __init__(self, in_features, out_features, r_cl=16, r_lm=16, r_cl_prime=16, scale=1.0, weight=None):
+        super(TripleLinearLoraLayer, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.scale = 2  # Scaling factor
+
+        # 原始权重矩阵 W
+        self.weight = nn.Parameter(weight, requires_grad=False)
+
+        # 压缩 token 的 LoRA 模块参数 (A_cl, B_cl)
+        self.lora_A_cl = nn.Parameter(torch.zeros((in_features, r_cl), device=self.weight.device, dtype=torch.bfloat16),
+                                      requires_grad=True)
+        self.lora_B_cl = nn.Parameter(
+            torch.zeros((r_cl, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+
+        # LLM token 的 LoRA 模块参数 (A_lm, B_lm)
+        self.lora_A_lm = nn.Parameter(torch.zeros((in_features, r_lm), device=self.weight.device, dtype=torch.bfloat16),
+                                      requires_grad=True)
+        self.lora_B_lm = nn.Parameter(
+            torch.zeros((r_lm, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+
+        # 额外的压缩 token 的 LoRA 模块参数 (A_cl', B_cl')
+        self.lora_A_cl_prime = nn.Parameter(
+            torch.zeros((in_features, r_cl_prime), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+        self.lora_B_cl_prime = nn.Parameter(
+            torch.zeros((r_cl_prime, out_features), device=self.weight.device, dtype=torch.bfloat16),
+            requires_grad=True)
+
+        # 初始化 LoRA 参数
+        nn.init.kaiming_uniform_(self.lora_A_cl, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B_cl)
+        nn.init.kaiming_uniform_(self.lora_A_lm, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B_lm)
+        nn.init.kaiming_uniform_(self.lora_A_cl_prime, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B_cl_prime)
+
+    def forward(self, x, mask):
+        # 原始权重的计算结果，只计算一次
+        result = F.linear(x, self.weight)
+
+        # 检查并应用每种 mask
+        if "cl_mask" in mask:
+            x_cl = x * mask["cl_mask"]
+            result_cl = self.scale * (x_cl @ self.lora_A_cl @ self.lora_B_cl)
+            result += result_cl
+
+        if "lm_mask" in mask:
+            x_lm = x * mask["lm_mask"]
+            result_lm = self.scale * (x_lm @ self.lora_A_lm @ self.lora_B_lm)
+            result += result_lm
+
+        if "cl_prime_mask" in mask:
+            x_cl_prime = x * mask["cl_prime_mask"]
+            result_cl_prime = self.scale * (x_cl_prime @ self.lora_A_cl_prime @ self.lora_B_cl_prime)
+            result += result_cl_prime
+
+        return result
+
+
+class TripleEmbeddingLoraLayer(nn.Module):
+    def __init__(self, in_features, out_features, padding_idx, r_cl=128, r_lm=128, r_cl_prime=128, scale=1.0,
+                 weight=None):
+        super(TripleEmbeddingLoraLayer, self).__init__()
+        self.num_embeddings = in_features
+        self.embedding_dim = out_features
+        self.padding_idx = padding_idx
+        self.scale = 2  # Scaling factor
+
+        # 原始权重矩阵 W
+        self.weight = nn.Parameter(weight, requires_grad=False)
+
+        # 压缩 token 的 LoRA 模块参数 (A_cl, B_cl)
+        self.lora_A_cl = nn.Parameter(torch.zeros((in_features, r_cl), device=self.weight.device, dtype=torch.bfloat16),
+                                      requires_grad=True)
+        self.lora_B_cl = nn.Parameter(
+            torch.zeros((r_cl, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+
+        # LLM token 的 LoRA 模块参数 (A_lm, B_lm)
+        self.lora_A_lm = nn.Parameter(torch.zeros((in_features, r_lm), device=self.weight.device, dtype=torch.bfloat16),
+                                      requires_grad=True)
+        self.lora_B_lm = nn.Parameter(
+            torch.zeros((r_lm, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+
+        # 额外的压缩 token 的 LoRA 模块参数 (A_cl', B_cl')
+        self.lora_A_cl_prime = nn.Parameter(
+            torch.zeros((in_features, r_cl_prime), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+        self.lora_B_cl_prime = nn.Parameter(
+            torch.zeros((r_cl_prime, out_features), device=self.weight.device, dtype=torch.bfloat16),
+            requires_grad=True)
+
+        # 初始化 LoRA 参数
+        nn.init.zeros_(self.lora_A_cl)
+        nn.init.normal_(self.lora_B_cl)
+        nn.init.zeros_(self.lora_A_lm)
+        nn.init.normal_(self.lora_B_lm)
+        nn.init.zeros_(self.lora_A_cl_prime)
+        nn.init.normal_(self.lora_B_cl_prime)
+
+    def forward(self, x, mask):
+        # 计算一次嵌入的基准结果
+        result = F.embedding(x, self.weight, self.padding_idx)  # 初始化结果
+
+        # 检查每个 mask 并应用相应的 LoRA 层
+        if "cl_mask" in mask:
+            x_cl = x * mask["cl_mask"]
+            after_A_cl = F.embedding(x_cl, self.lora_A_cl, self.padding_idx)
+            result_cl = self.scale * (after_A_cl @ self.lora_B_cl)
+            result += result_cl
+
+        if "lm_mask" in mask:
+            x_lm = x * mask["lm_mask"]
+            after_A_lm = F.embedding(x_lm, self.lora_A_lm, self.padding_idx)
+            result_lm = self.scale * (after_A_lm @ self.lora_B_lm)
+            result += result_lm
+
+        if "cl_prime_mask" in mask:
+            x_cl_prime = x * mask["cl_prime_mask"]
+            after_A_cl_prime = F.embedding(x_cl_prime, self.lora_A_cl_prime, self.padding_idx)
+            result_cl_prime = self.scale * (after_A_cl_prime @ self.lora_B_cl_prime)
+            result += result_cl_prime
+
+        return result
+
+
+class LinearLoraLayer(nn.Module):
+    # No bias in LLama3 LinearLayer
+    def __init__(self, in_features, out_features, r=16, weight=None):
+        super().__init__()
+        self.weight = nn.Parameter(weight, requires_grad=False)
+        self.scale = 2  # The alpha value is usually twice the rank
+        self.lora_A = nn.Parameter(torch.zeros((in_features, r), device=self.weight.device, dtype=torch.bfloat16),
+                                   requires_grad=True)
+        self.lora_B = nn.Parameter(torch.zeros((r, out_features), device=self.weight.device, dtype=torch.bfloat16),
+                                   requires_grad=True)
+        nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B)
+
+    def forward(self, x):
+        result = F.linear(x, self.weight)
+        result += self.scale * (x @ self.lora_A @ self.lora_B)
+        return result
+
+
+class EmbeddingLoraLayer(nn.Module):
+    # No bias in LLama3 LinearLayer
+    def __init__(self, in_features, out_features, padding_idx, r=128, weight=None):
+        super().__init__()
+        self.padding_idx = padding_idx
+        self.weight = nn.Parameter(weight, requires_grad=False)
+        self.scale = 2  # The alpha value is usually twice the rank
+        self.lora_A = nn.Parameter(torch.zeros((in_features, r), device=self.weight.device, dtype=torch.bfloat16),
+                                   requires_grad=True)
+        self.lora_B = nn.Parameter(torch.zeros((r, out_features), device=self.weight.device, dtype=torch.bfloat16),
+                                   requires_grad=True)
+        nn.init.zeros_(self.lora_A)
+        nn.init.normal_(self.lora_B)
+
+    def forward(self, x):
+        result = F.embedding(x, self.weight, self.padding_idx)
+        after_A = F.embedding(x, self.lora_A, self.padding_idx)
+        result += self.scale * (after_A @ self.lora_B)
+        return result
+
+
+class CompressLLM(torch.nn.Module):
+    def __init__(self, model_id, mem_size, head_num, device_rank, task_config):
+        super().__init__()
+        self.loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_id,
+            torch_dtype=torch.bfloat16,
+            device_map=f"cuda:{device_rank}",
+        )
+        self.device = f"cuda:{device_rank}"
+        self.task_config = task_config
+        config = self.model.config
+        self.vocab_size = config.vocab_size
+        self.mem_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((mem_size, config.hidden_size)),
+                                       requires_grad=True)
+        self.special_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((2, config.hidden_size)),
+                                           requires_grad=True)
+        self.head_num = head_num
+
+        if "addition" in task_config and task_config["addition"] == "without_compress_loss":
+            self.compress_head = None
         else:
-            html_content1 += f'{word1} '
-            html_content2 += f'{word1} '
+            self.compress_head = nn.Linear(config.hidden_size, head_num * config.vocab_size, bias=False,
+                                           device=f"cuda:{device_rank}",
+                                           dtype=self.model.model.embed_tokens.weight.dtype)
+        # self.compress_head = nn.Sequential(
+        #     nn.Linear(config.hidden_size, head_num*128, bias=False, device=f"cuda:{device_rank}", dtype=self.model.model.embed_tokens.weight.dtype),
+        #     nn.Linear(head_num*128, head_num*config.vocab_size, bias=False, device=f"cuda:{device_rank}", dtype=self.model.model.embed_tokens.weight.dtype)
+        #     )
+        mean = torch.mean(self.model.model.embed_tokens.weight).item()
+        std = torch.std(self.model.model.embed_tokens.weight).item()
+        nn.init.normal_(self.mem_tokens, mean=mean, std=std)
+        nn.init.normal_(self.special_tokens, mean=mean, std=std)
 
-    html_content3 += html_content1 + "</p>" + html_content2 + "</p>"
-    html_content1 = ""
-    html_content2 = ""
-html_content += html_content3
-html_content += "</body></html>"
+    def forward(self, inputs):
 
-# 将HTML内容写入文件
-with open("acc-3.html", "w") as f:
-    f.write(html_content)
+        # ->LlamaForCausalLM->LlamaModel->embed_tokens
+        # todo:1.
+        if self.task_config["use_multi_lora"]:
+            mask = {"lm_mask": torch.ones_like(inputs['input_ids'])}
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
+        else:
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
+        bsz, seq_len, emb_size = inputs_embeds.size()
+        mem_size = self.mem_tokens.size(0)
+        expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
+        encode_inputs_embeds = torch.cat([inputs_embeds, expand_mem], dim=1)
 
-print("HTML文件已生成")
+        # [1,seq_len]
+        position_ids = torch.arange(1, seq_len + 1, device=inputs_embeds.device).unsqueeze(0)
+        # [1,mem_size]：compress token position information, the step is compression ratio
+        mem_position_ids = torch.arange((self.head_num + 1) // 2, seq_len + 1, step=self.head_num,
+                                        device=inputs_embeds.device).unsqueeze(0)
+        # [1,seq_len+mem_size]
+        encode_position_ids = torch.cat([position_ids, mem_position_ids], dim=1)
+
+        # make three masks：cl_mask、lm_mask、cl_prime_mask
+        # todo:2.
+        if self.task_config["use_multi_lora"]:
+            mask = make_masks(inputs_embeds, expand_mem)
+            # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+            if "wo_pe" in self.task_config:
+                # print("no pe in here")
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                    mask=mask,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                    mask=mask,
+                )
+        else:
+            if "wo_pe" in self.task_config:
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
+
+        hidden_states = outputs.hidden_states[-1]
+
+        # [B,mem_size,emb_size]
+        mem_hidden = hidden_states[:, -mem_size:]
+
+        tot_loss = 0
+        tot_task = 0
+        loss_info = {}
+
+        # LM loss
+        if 'lm_targets' in inputs and self.task_config["use_lm_loss"]:
+            # print("lm_targets will be used")
+            # [B,seq_len-1] -> [B,seq_len-1,E]
+            # todo:3.
+            if self.task_config["use_multi_lora"]:
+                mask = {"lm_mask": torch.ones_like(inputs['lm_targets'][:, :-1])}
+                lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:, :-1], mask)
+            else:
+                lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:, :-1])
+
+            # [1,E] -> [1,1,E] -> [B,1,E]
+            expand_lm_token = self.special_tokens[1:2].unsqueeze(0).expand(bsz, 1, emb_size)
+
+            #                     [B,mem_size,E];     [B,1,E];      [B,seq_len-1,E]
+            lm_emb = torch.cat([mem_hidden, expand_lm_token, lm_target_emb], dim=1)
+            lm_position_ids = torch.cat([mem_position_ids, position_ids + seq_len - 1], dim=1)
+            # todo:4.
+            if self.task_config["use_multi_lora"]:
+                mask = make_masks(torch.cat([expand_lm_token, lm_target_emb], dim=1), mem_hidden,
+                                  compress_prime_token=True)
+                if "wo_pe" in self.task_config:
+                    outputs = self.model(
+                        inputs_embeds=lm_emb,
+                        mask=mask,
+                    )
+                else:
+                    outputs = self.model(
+                        position_ids=lm_position_ids,
+                        inputs_embeds=lm_emb,
+                        mask=mask,
+                    )
+            else:
+                if "wo_pe" in self.task_config:
+                    outputs = self.model(
+                        inputs_embeds=lm_emb,
+                    )
+                else:
+                    outputs = self.model(
+                        position_ids=lm_position_ids,
+                        inputs_embeds=lm_emb,
+                    )
+
+            # [B,mem_size+S,V] -> [B,S,V]
+            logits = outputs.logits[:, mem_size:]
+            logits = logits.contiguous().view(-1, self.vocab_size)
+            inputs['lm_targets'] = inputs['lm_targets'].contiguous().view(-1).to(logits.device)
+
+            lm_loss = self.loss_fct(logits, inputs['lm_targets'])
+            loss_info["lm_loss"] = lm_loss.item()
+            tot_loss += lm_loss
+            tot_task += 1
+
+            # compress loss
+        if "compress_targets" in inputs and self.compress_head is not None:
+            # print("compress_targets will be used")
+            # [B,mem_size,emb_size] -> [B,mem_size,head_num*vocab_size,]
+            logits = self.compress_head(mem_hidden)
+            logits = logits.float()
+            logits = logits.contiguous().view(-1, self.vocab_size)
+            inputs['compress_targets'] = inputs['compress_targets'].contiguous().view(-1).to(logits.device)
+
+            compress_loss = self.loss_fct(logits, inputs['compress_targets'])
+            loss_info["compress_loss"] = compress_loss.item()
+            tot_loss += compress_loss
+            tot_task += 1
+
+        use_ae = True
+        if "wo_ae" in self.task_config and self.task_config["wo_ae"]:
+            use_ae = False
+        # AE loss
+        if 'ae_targets' in inputs and use_ae:
+            # print("ae_targets will be used")
+            # [1,E] -> [1,1,E] -> [B,1,E]
+            expand_ae_token = self.special_tokens[0:1].unsqueeze(0).expand(bsz, 1, emb_size)
+
+            #                     [B,mem_size,E];     [B,1,E];      [B,seq_len-1,E]
+            ae_emb = torch.cat([mem_hidden, expand_ae_token, inputs_embeds[:, :-1, :]], dim=1)
+            ae_position_ids = torch.cat([mem_position_ids, position_ids - 1], dim=1)
+
+            if "wo_pe" in self.task_config:
+                outputs = self.model(
+                    inputs_embeds=ae_emb
+                )
+            else:
+                outputs = self.model(
+                    position_ids=ae_position_ids,
+                    inputs_embeds=ae_emb
+                )
+
+            # [B,mem_size+S,V] -> [B,S,V]
+            logits = outputs.logits[:, mem_size:]
+            inputs['ae_targets'] = inputs['ae_targets'].contiguous().view(-1).to(logits.device)
+            ae_loss = self.loss_fct(logits.contiguous().view(-1, self.vocab_size), inputs['ae_targets'])
+            loss_info["ae_loss"] = ae_loss.item()
+            tot_loss += ae_loss
+            tot_task += 1
+        else:
+            inputs['ae_targets'] = inputs['ae_targets'].contiguous().view(-1).to(logits.device)
+            loss_info["ae_loss"] = -1
+
+        loss = tot_loss / tot_task
+        # return AE_logtis for validation.
+        return {"loss": loss, "loss_info": loss_info, "logits": logits}
+
+    def ae_inference(self, inputs, generate_num):
+        # ->LlamaForCausalLM->LlamaModel->embed_tokens
+        inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
+        bsz, seq_len, emb_size = inputs_embeds.size()
+        mem_size = self.mem_tokens.size(0)
+        expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
+        encode_inputs_embeds = torch.cat([inputs_embeds, expand_mem], dim=1)
+
+        # [1,seq_len]
+        position_ids = torch.arange(1, seq_len + 1, device=inputs_embeds.device).unsqueeze(0)
+        # [1,mem_size]
+        mem_position_ids = torch.arange((self.head_num + 1) // 2, seq_len + 1, step=self.head_num,
+                                        device=inputs_embeds.device).unsqueeze(0)
+        # [1,seq_len+mem_size]
+        encode_position_ids = torch.cat([position_ids, mem_position_ids], dim=1)
+
+        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+        if "wo_pe" in self.task_config:
+            outputs = self.model(
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+            )
+        else:
+            outputs = self.model(
+                position_ids=encode_position_ids,
+                inputs_embeds=encode_inputs_embeds,
+                output_hidden_states=True,
+            )
+
+        hidden_states = outputs.hidden_states[-1]
+
+        # [B,mem_size,emb_size]
+        mem_hidden = hidden_states[:, -mem_size:]
+
+        # [1,E] -> [1,1,E] -> [B,1,E]
+        expand_ae_token = self.special_tokens[0:1].unsqueeze(0).expand(bsz, 1, emb_size)
+
+        #                  [B,mem_size,E];   [B,1,E]
+        ae_emb = torch.cat([mem_hidden, expand_ae_token], dim=1)
+        ae_position_ids = torch.cat([mem_position_ids, position_ids[:, :1] - 1], dim=1)
+
+        generate_text = []
+        past_key_values = None
+        next_inputs_embeds = ae_emb.clone()
+        next_position_ids = ae_position_ids.clone()
+
+        for i in range(generate_num):
+
+            if "wo_pe" in self.task_config:
+                out = self.model(inputs_embeds=next_inputs_embeds, past_key_values=past_key_values, use_cache=True)
+            else:
+                out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds,
+                                 past_key_values=past_key_values, use_cache=True)
+
+            # [B,S,V] -> [B,V]
+            logit = out.logits[:, -1]
+            past_key_values = out.past_key_values
+            # [B,V]->[B]
+            next_token_id = torch.argmax(logit, dim=-1)
+
+            # [B]->[B,E]->[B,1,E]
+            next_inputs_embeds = self.model.model.embed_tokens(next_token_id).unsqueeze(1).to(inputs_embeds.device)
+            next_position_ids = position_ids[:, i:i + 1]
+            generate_text.append(next_token_id.item())
+
+        return generate_text
+
+    def cl_inference(self, inputs, segment_size):
+        # ->LlamaForCausalLM->LlamaModel->embed_tokens
+        if self.task_config["use_multi_lora"]:
+            mask = {"lm_mask": torch.ones_like(inputs['lm_targets'])}
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
+        else:
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
+        bsz, seq_len, emb_size = inputs_embeds.size()
+        mem_size = self.mem_tokens.size(0)
+        expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
+        encode_inputs_embeds = torch.cat([inputs_embeds, expand_mem], dim=1)
+
+        # [1,seq_len]
+        position_ids = torch.arange(1, seq_len + 1, device=inputs_embeds.device).unsqueeze(0)
+        # [1,mem_size]
+        mem_position_ids = torch.arange((self.head_num + 1) // 2, segment_size + 1, step=self.head_num,
+                                        device=inputs_embeds.device).unsqueeze(0)
+        # [1,seq_len+mem_size]
+        encode_position_ids = torch.cat([position_ids, mem_position_ids], dim=1)
+
+        if self.task_config["use_multi_lora"]:
+            mask = make_masks(inputs_embeds, expand_mem)
+            # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+            if "wo_pe" in self.task_config:
+                # print("no pe in here")
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                    mask=mask,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                    mask=mask,
+                )
+        else:
+            if "wo_pe" in self.task_config:
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
+
+        hidden_states = outputs.hidden_states[-1]
+
+        # [B,mem_size,emb_size]
+        mem_hidden = hidden_states[:, -mem_size:]
+        # [B,mem_size,emb_size] -> [B,mem_size,head_num*vocab_size]
+        logits = self.compress_head(mem_hidden).float()
+        # [B*mem_size*head_num,vocab_size]
+        logits = logits.contiguous().view(-1, self.vocab_size)
+        # [b*m*h,v] -> [b*m*h]
+        generate_text = torch.argmax(logits, dim=-1).tolist()
+
+        return generate_text
+
+
+def make_masks(input_token=None, compress_token=None, compress_prime_token=False):
+    # make three masks：cl_mask、lm_mask、cl_prime_mask
+    mask = {}
+    if compress_prime_token:
+        lm_zero_mask = torch.zeros_like(compress_token, dtype=torch.bfloat16).to(input_token.device)
+        lm_ones_mask = torch.ones_like(input_token, dtype=torch.bfloat16).to(input_token.device)
+        lm_mask = torch.cat([lm_zero_mask, lm_ones_mask], dim=1).to(input_token.device)
+
+        cl_prime_ones_mask = torch.ones_like(compress_token, dtype=torch.bfloat16).to(input_token.device)
+        cl_prime_zero_mask = torch.zeros_like(input_token, dtype=torch.bfloat16).to(input_token.device)
+        cl_prime_mask = torch.cat([cl_prime_ones_mask, cl_prime_zero_mask], dim=1).to(input_token.device)
+
+        mask.update({"cl_prime_mask": cl_prime_mask, "lm_mask": lm_mask, })
+    else:
+        cl_zero_mask = torch.zeros_like(input_token, dtype=torch.bfloat16).to(input_token.device)
+        cl_ones_mask = torch.ones_like(compress_token, dtype=torch.bfloat16).to(input_token.device)
+        cl_mask = torch.cat([cl_zero_mask, cl_ones_mask], dim=1).to(input_token.device)
+
+        lm_ones_mask = torch.ones_like(input_token, dtype=torch.bfloat16).to(input_token.device)
+        lm_zero_mask = torch.zeros_like(compress_token, dtype=torch.bfloat16).to(input_token.device)
+        lm_mask = torch.cat([lm_ones_mask, lm_zero_mask], dim=1).to(input_token.device)
+
+        mask.update({"cl_mask": cl_mask, "lm_mask": lm_mask, })
+    return mask
+
+
+def save_adapter(model, save_path_and_name='adapter.pt', log=False):
+    adapter_name = set()
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            if log:
+                print("[Save Adapter]", name)
+            adapter_name.add(name)
+
+    state_dict = model.state_dict()
+    adapter_state_dict = {name: param for name, param in state_dict.items() if name in adapter_name}
+    torch.save(adapter_state_dict, save_path_and_name)
+
+
+def load_adapter(model, save_path_and_name='adapter.pt', log=False):
+    adapter_state_dict = torch.load(save_path_and_name, map_location='cpu')  # 先加载到CPU
+    if log:
+        print("Loading adapter parameters:")
+        for name, _ in adapter_state_dict.items():
+            print(f"[Load Adapter] {name}")
+
+    # 将adapter的权重转移到模型的设备上
+    adapter_state_dict = {k: v.to(model.device) for k, v in adapter_state_dict.items()}
+
+    model.load_state_dict(adapter_state_dict, strict=False)
+    return model
+
+
+def get_model_for_compress(model_id, task_config, rank):
+    def add_compress_lora(model, task_config):
+        for name, module in model.named_children():
+
+            if name == "compress_head":
+                continue
+            if isinstance(module, nn.Linear):
+                setattr(model, name, LinearLoraLayer(module.in_features, module.out_features, r=16,
+                                                     weight=module.weight.data.clone()))
+            elif isinstance(module, nn.Embedding):
+                setattr(model, name,
+                        EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx, r=128,
+                                           weight=module.weight.data.clone()))
+            else:
+                # Recursively apply this function to submodules
+                add_compress_lora(module, task_config)
+
+    def add_multi_lora(model, task_config):
+        for name, module in model.named_children():
+            if name == "compress_head":
+                continue
+            if isinstance(module, nn.Linear):
+                setattr(model, name,
+                        TripleLinearLoraLayer(module.in_features, module.out_features, r_cl=16, r_lm=16, r_cl_prime=16,
+                                              weight=module.weight.data.clone()))
+            elif isinstance(module, nn.Embedding):
+                setattr(model, name,
+                        TripleEmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx,
+                                                 r_cl=128, r_lm=128, r_cl_prime=128, weight=module.weight.data.clone()))
+            else:
+                # Recursively apply this function to submodules
+                add_multi_lora(module, task_config)
+
+    # config = BitsAndBytesConfig(
+    #     load_in_4bit=True,
+    #     bnb_4bit_quant_type="nf4",
+    #     bnb_4bit_use_double_quant=True,
+    #     bnb_4bit_compute_dtype=torch.bfloat16,
+    # )
+    # todo:5.
+    if task_config["use_multi_lora"]:
+        modify_llama()
+        model = CompressLLM(
+            model_id,
+            mem_size=task_config["mem_size"],
+            head_num=task_config["head_num"],
+            device_rank=rank,
+            task_config=task_config
+        )
+        add_multi_lora(model, task_config)
+    else:
+        model = CompressLLM(
+            model_id,
+            mem_size=task_config["mem_size"],
+            head_num=task_config["head_num"],
+            device_rank=rank,
+            task_config=task_config
+        )
+        add_compress_lora(model, task_config)
+    return model
+
+
+def get_model(model_id, task_config, rank):
+    if task_config["task_type"] == "Compress":
+        return get_model_for_compress(model_id, task_config, rank)
+    raise Exception("Don't exist [{task_type}] task.")
+
+
+def load_model_with_adapter(model_id, task_config, rank, save_path_and_name='adapter.pt', log=False):
+    model = get_model(model_id, task_config, rank)
+    load_adapter(model, save_path_and_name, log)
+    return model
+
+
+# python /home/liuxinyu/zrs/forget-me-not/models/llama3.py
+import torch
+from transformers import AutoTokenizer
+
+work_dir = "../compressLLM_baseline_len-510_ratio-5_wo-ae"
+with open(work_dir + f'/config.json') as f:
+    config =json.load(f)
+
+config["data_config"]["model_id"] = "../../../models/TinyLlama/TinyLlama_v1.1"
+world_size = torch.cuda.device_count()
+tokenizer = AutoTokenizer.from_pretrained(config["data_config"]["model_id"], token=config["data_config"]["hf_token"])
+
+model = get_model(config["data_config"]["model_id"], config["task_config"], 0)
+model = load_adapter(model, save_path_and_name=work_dir+'/adapter.pt', log=False)
+
+
+input_ids =  "was to fit dark matter halo models to galaxies of the SPARC sample for which we have good rotation curves. Thanks to the work of Federico Lelli, we also have an empirical relation between line-width and the flat rotation velocity. Together, these provide a connection between the line-width and halo mass:\nThe relation Pengfei found between halo mass (M200) and line-width for the NFW (ΛCDM standard) halo model fit to rotation curves from the SPARC galaxy sample.\nOnce we have the mass-line width relation, we can assign a halo mass to every galaxy in the HIPASS survey and recompute the distribution function. But now we have not the velocity function, but the halo mass function. We've skipped the conversion of light to stellar mass to total mass and used the dynamics to skip straight to the halo mass function:\nThe halo mass function. The points are the data; these are well fit by a Schechter function (black line; this is commonly used for the galaxy luminosity function). The red line is the prediction of ΛCDM for dark matter halos.\nThe observed mass function agrees with the predicted one! Test successful! Well, mostly. Let's think through the various aspects here.\nFirst, the normalization is about right. It does not have the offset seen in the first figure. As it should not – we've gone straight to the halo mass in this exercise, and not used the luminosity as an intermediary proxy. So that is a genuine success. It didn't have to work out this well, and would not do so in a very different cosmology (like SCDM).\nSecond, it breaks down at high mass. The data shows the usual Schechter cut-off at high mass, while the predicted number of dark matter halos continues as an unabated power law. This might be OK if high mass dark matter halos contain little neutral hydrogen. If this is the case, they will be invisible to HIPASS, the 21cm survey on which this is based. One expects this, to a certain extent: the most massive galaxies tend to be gas-poor ellipticals. That helps, but only by shifting the turn-down to slightly higher mass. It is still there, so"
+cl_generate_text = "was to fit dark matter halo models to galaxies of the SPARC sample for which we have good rotation curves. Thanks to the work of Federico Lelli, we also have an empirical relation between line-width and the flat rotation velocity. Together, these provide a connection between the line-width and halo mass:\nThe relation Pengfei found between halo mass (M200) and line-width for the NFW ( theCDM standard) halo model fit to rotation curves from the SPARC galaxy sample.\nOnce we have the mass-line width relation, we can assign a halo mass to every galaxy in the HIPASS survey and re with the distribution function. But now we have not the velocity function, but the halo mass function. We've skipped the conversion of light to stellar mass to total mass and used the dynamics to skip straight to the halo mass function:\nThe halo mass function. The points are the data; these are well fit by a Schechter function (black line; this is commonly used for the galaxy luminosity function). The red line is the prediction of 7CDM for dark matter halos.\nThe observed mass function agrees with the predicted one! Test successful! Well, mostly. Let's think through the various aspects here.\nFirst, the normalization is about right. It does not have the offset seen in the first figure. As it should not – we've gone straight to the halo mass in this exercise, and not used the luminosity as an intermediary proxy. So that is a genuine success. It didn't have to work out this well, and would not do so in a very different cosmology (like SCDM).\nSecond, it breaks down at high mass. The data shows the usual Schechter cut-off at high mass, while the predicted number of dark matter halos continues as an unabated power law. This might be OK if high mass dark matter halos contain little neutral hydrogen. If this is the case, they will be invisible to HIPASS, the 21cm survey on which this is based. One expects this, to a certain extent: the most massive galaxies tend to be gas-poor ellipticals. That helps, but only by shifting the turn-down to slightly higher mass. It is still there, so"
+lm_targets = "apple"
+with (torch.no_grad()):
+    model.eval()
+
+    input_ids = tokenizer(input_ids, add_special_tokens=False)["input_ids"]
+    lm_targets = tokenizer(lm_targets, add_special_tokens=False)["input_ids"]
+    inputs = {"input_ids":torch.tensor(input_ids).unsqueeze(0).to(model.device),
+              "compress_targets":torch.tensor(input_ids).unsqueeze(0).to(model.device),
+              "lm_targets":torch.tensor(lm_targets).unsqueeze(0).to(model.device)}
+    cl_generate_text = model.cl_inference(inputs, 510)
+    b = tokenizer.decode(cl_generate_text, skip_special_tokens=True)
+    # cl_generate_text = tokenizer.decode(input_ids, skip_special_tokens=True)
+    print(b)
+    count = 0
+    index = 0
+    str = ""
+    res = ""
+    for i in range(len(cl_generate_text)):
+        str = ""
+        c = cl_generate_text[index:index+5]
+        c = tokenizer.decode(c, skip_special_tokens=False)
+        index += 5
+        str = c + " | "
+        res += str
+        if i == len(cl_generate_text) / 5:
+            break
+
+    print("--------------",index)
+
+
+    print(res,end="")

@@ -19,7 +19,7 @@
         "segment_num": 2,
         "task_type": "Compress",
         "wo_ae": true,
-        "instruction_fine-tuning_add_compress_loss": false,
+        "instruction_fine-tuning_add_compress_loss": true,
         "use_multi_lora": false,
         "use_merge_lora": false,
         "use_lm_loss": true
@@ -30,7 +30,7 @@
         "token_num": 1000000000,
         "min_len": 510,
         "model_id": "../../models/TinyLlama/TinyLlama_v1.1",
-        "instruction_dataset_repo": "../../dataset/sggetao/PwC"
+        "instruction_dataset_repo": "../../dataset/mmlu/all"
     },
     "Total_parameters": 1445459968,
     "Trainable_parameters": 345503744,

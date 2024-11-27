@@ -164,6 +164,7 @@ from tqdm import tqdm
 # if "a" in mask:
 #     print(6)
 from transformers import AutoTokenizer, AutoModelForCausalLM
+
 #
 # # 选择一个模型的tokenizer（如BERT模型）
 # work_dir = "../compressLLM_multi_lora_510_ratio_lm&cl"
@@ -332,7 +333,997 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 # HF_ENDPOINT=https://hf-mirror.com python prepare_data.py --work_dir compressLLM_len-510_ratio-15
 # """
 
-work_dir = "../compressLLM_random_instruction_(pre-train-multi-lora)_multi-lora_lm&cl"
+# work_dir = "../compressLLM_random_instruction_(pre-train-multi-lora)_multi-lora_lm&cl"
+# with open(work_dir + f'/config.json') as f:
+#     config =json.load(f)
+#
+# config["data_config"]["model_id"] = "../../../models/TinyLlama/TinyLlama_v1.1"
+# world_size = torch.cuda.device_count()
+# tokenizer = AutoTokenizer.from_pretrained(config["data_config"]["model_id"], token=config["data_config"]["hf_token"])
+#
+# print("calculate BLEU4...")
+#
+#
+# reference = "Komal Uzair and her brother Shayan completed their summit on the ",
+# candidate = "Komal Uzair and her brother Shayan completed their summit on apple",
+#
+# input_ids = tokenizer(reference, add_special_tokens=False)["input_ids"][0]
+# cl_gen_ids = tokenizer(candidate, add_special_tokens=False)["input_ids"][0]
+# bleu4 = sentence_bleu([input_ids], cl_gen_ids, weights=(0.25, 0.25, 0.25, 0.25))
+#
+#
+# print(f"BLEU-4 Score: {bleu4}")
+
+
+# position_ids = torch.arange(1,5)
+# print(position_ids)
+# logit = torch.tensor([1,2,3,4,8,2,6])
+# next_token_id = torch.argmax(logit).tolist()
+# print(next_token_id)
+
+# with torch.no_grad():
+#     model.eval()
+#     teacher_outputs = model(
+#         input_ids=batch['input_ids'],
+#         attention_mask=batch['attention_mask'],
+#     )
+# def get_kl_loss(teacher_logits, student_logits, student_labels, teacher_labels, temperature, distill_topk=None):
+#     ## make sure the teacher_logits and student_logits have the same shape
+#     loss_fct = nn.KLDivLoss(reduction="batchmean")
+#     _, _, vocab_size = student_logits.shape
+#
+#     ## only compute loss in the completion part, not propmt
+#
+#     student_mask = (student_labels != -100).unsqueeze(-1).expand_as(student_logits)  ## batch_size,num_tokens,vocab_size
+#     student_logits_selected = torch.masked_select(student_logits, student_mask).view(-1, vocab_size)
+#
+#     teacher_mask = (teacher_labels != -100).unsqueeze(-1).expand_as(teacher_logits)
+#     teacher_logits_selected = torch.masked_select(teacher_logits, teacher_mask).view(-1, vocab_size)
+#
+#     if distill_topk is not None:
+#         _, topk_teacher_indices = torch.topk(teacher_logits_selected, k=distill_topk, dim=-1)
+#
+#         teacher_logits_selected = torch.gather(teacher_logits_selected, 1, topk_teacher_indices)
+#         student_logits_selected = torch.gather(student_logits_selected, 1, topk_teacher_indices)
+#
+#     assert teacher_logits_selected.shape == student_logits_selected.shape, (
+#         f"The shape of teacher logits is {teacher_logits_selected.shape}, while that of student is {student_logits_selected.shape}")
+#
+#     kl_loss = loss_fct(
+#         F.log_softmax(student_logits_selected / temperature, dim=-1),
+#         F.softmax(teacher_logits_selected / temperature, dim=-1),
+#     ) * temperature ** 2
+#
+#     return kl_loss
+#
+# def prepare_inputs_embeds(self, input_position_ids, compress_position_ids, inputs_token, compress_token):
+#
+#     inputs_token[input_position_ids == compress_position_ids] = compress_token
+#     inputs_token[input_position_ids != compress_position_ids] = -1
+#
+#     return inputs_token
+
+
+
+
+# import torch
+#
+# # 示例数据
+# inputs_token = torch.tensor([10, 20, 30, 40, 50, 60, 70, 80, 90, 100]).float()
+# input_position_ids = torch.tensor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+#
+# compress_token = torch.tensor([101, 102, 103, 104]).float()
+# compress_position_ids = torch.tensor([2, 4, 6, 8])
+#
+# # 找到 compress_position_ids 在 input_position_ids 中的索引
+# indices = torch.isin(input_position_ids, compress_position_ids).nonzero(as_tuple=True)[0]
+#
+# # 替换对应位置
+# inputs_token[indices] = compress_token
+#
+# print(inputs_token)
+
+import logging
+import pdb
+import queue
+
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+import torch
+from torch import nn
+from torch.nn import CrossEntropyLoss
+from transformers.models.llama.modeling_llama import LlamaForCausalLM
+from transformers.modeling_outputs import CausalLMOutputWithPast
+import torch.nn.functional as F
+import math
+import transformers
+
+from compress.modify_code import modify_llama
+
+
+class TripleLinearLoraLayer(nn.Module):
+    def __init__(self, in_features, out_features, r_cl=16, r_lm=16, r_cl_prime=16, scale=1.0, weight=None):
+        super(TripleLinearLoraLayer, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.scale = 2  # Scaling factor
+
+        # 原始权重矩阵 W
+        self.weight = nn.Parameter(weight, requires_grad=False)
+
+        # 压缩 token 的 LoRA 模块参数 (A_cl, B_cl)
+        self.lora_A_cl = nn.Parameter(torch.zeros((in_features, r_cl), device=self.weight.device, dtype=torch.bfloat16),
+                                      requires_grad=False)
+        self.lora_B_cl = nn.Parameter(
+            torch.zeros((r_cl, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=False)
+
+        # LLM token 的 LoRA 模块参数 (A_lm, B_lm)
+        self.lora_A_lm = nn.Parameter(torch.zeros((in_features, r_lm), device=self.weight.device, dtype=torch.bfloat16),
+                                      requires_grad=True)
+        self.lora_B_lm = nn.Parameter(
+            torch.zeros((r_lm, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+
+        # 额外的压缩 token 的 LoRA 模块参数 (A_cl', B_cl')
+        self.lora_A_cl_prime = nn.Parameter(
+            torch.zeros((in_features, r_cl_prime), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+        self.lora_B_cl_prime = nn.Parameter(
+            torch.zeros((r_cl_prime, out_features), device=self.weight.device, dtype=torch.bfloat16),
+            requires_grad=True)
+
+        # 初始化 LoRA 参数
+        nn.init.kaiming_uniform_(self.lora_A_cl, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B_cl)
+        nn.init.kaiming_uniform_(self.lora_A_lm, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B_lm)
+        nn.init.kaiming_uniform_(self.lora_A_cl_prime, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B_cl_prime)
+
+    def forward(self, x, mask):
+        # 原始权重的计算结果，只计算一次
+        result = F.linear(x, self.weight)
+
+        # 检查并应用每种 mask
+        if "cl_mask" in mask:
+            x_cl = x * mask["cl_mask"]
+            result_cl = self.scale * (x_cl @ self.lora_A_cl @ self.lora_B_cl)
+            result += result_cl
+
+        if "lm_mask" in mask:
+            x_lm = x * mask["lm_mask"]
+            result_lm = self.scale * (x_lm @ self.lora_A_lm @ self.lora_B_lm)
+            result += result_lm
+
+        if "cl_prime_mask" in mask:
+            x_cl_prime = x * mask["cl_prime_mask"]
+            result_cl_prime = self.scale * (x_cl_prime @ self.lora_A_cl_prime @ self.lora_B_cl_prime)
+            result += result_cl_prime
+
+        return result
+
+
+class TripleEmbeddingLoraLayer(nn.Module):
+    def __init__(self, in_features, out_features, padding_idx, r_cl=128, r_lm=128, r_cl_prime=128, scale=1.0,
+                 weight=None):
+        super(TripleEmbeddingLoraLayer, self).__init__()
+        self.num_embeddings = in_features
+        self.embedding_dim = out_features
+        self.padding_idx = padding_idx
+        self.scale = 2  # Scaling factor
+
+        # 原始权重矩阵 W
+        self.weight = nn.Parameter(weight, requires_grad=False)
+
+        # 压缩 token 的 LoRA 模块参数 (A_cl, B_cl)
+        self.lora_A_cl = nn.Parameter(torch.zeros((in_features, r_cl), device=self.weight.device, dtype=torch.bfloat16),
+                                      requires_grad=False)
+        self.lora_B_cl = nn.Parameter(
+            torch.zeros((r_cl, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=False)
+
+        # LLM token 的 LoRA 模块参数 (A_lm, B_lm)
+        self.lora_A_lm = nn.Parameter(torch.zeros((in_features, r_lm), device=self.weight.device, dtype=torch.bfloat16),
+                                      requires_grad=True)
+        self.lora_B_lm = nn.Parameter(
+            torch.zeros((r_lm, out_features), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+
+        # 额外的压缩 token 的 LoRA 模块参数 (A_cl', B_cl')
+        self.lora_A_cl_prime = nn.Parameter(
+            torch.zeros((in_features, r_cl_prime), device=self.weight.device, dtype=torch.bfloat16), requires_grad=True)
+        self.lora_B_cl_prime = nn.Parameter(
+            torch.zeros((r_cl_prime, out_features), device=self.weight.device, dtype=torch.bfloat16),
+            requires_grad=True)
+
+        # 初始化 LoRA 参数
+        nn.init.zeros_(self.lora_A_cl)
+        nn.init.normal_(self.lora_B_cl)
+        nn.init.zeros_(self.lora_A_lm)
+        nn.init.normal_(self.lora_B_lm)
+        nn.init.zeros_(self.lora_A_cl_prime)
+        nn.init.normal_(self.lora_B_cl_prime)
+
+    def forward(self, x, mask):
+        # 计算一次嵌入的基准结果
+        result = F.embedding(x, self.weight, self.padding_idx)  # 初始化结果
+
+        # 检查每个 mask 并应用相应的 LoRA 层
+        if "cl_mask" in mask:
+            x_cl = x * mask["cl_mask"]
+            after_A_cl = F.embedding(x_cl, self.lora_A_cl, self.padding_idx)
+            result_cl = self.scale * (after_A_cl @ self.lora_B_cl)
+            result += result_cl
+
+        if "lm_mask" in mask:
+            x_lm = x * mask["lm_mask"]
+            after_A_lm = F.embedding(x_lm, self.lora_A_lm, self.padding_idx)
+            result_lm = self.scale * (after_A_lm @ self.lora_B_lm)
+            result += result_lm
+
+        if "cl_prime_mask" in mask:
+            x_cl_prime = x * mask["cl_prime_mask"]
+            after_A_cl_prime = F.embedding(x_cl_prime, self.lora_A_cl_prime, self.padding_idx)
+            result_cl_prime = self.scale * (after_A_cl_prime @ self.lora_B_cl_prime)
+            result += result_cl_prime
+
+        return result
+
+
+# from peft import prepare_model_for_kbit_training
+
+class LinearLoraLayer(nn.Module):
+    # No bias in LLama3 LinearLayer
+    def __init__(self, in_features, out_features, r=16, weight=None):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = nn.Parameter(weight, requires_grad=False)
+        self.scale = 2  # The alpha value is usually twice the rank
+        self.lora_A = nn.Parameter(torch.zeros((in_features, r), device=self.weight.device, dtype=torch.bfloat16),
+                                   requires_grad=True)
+        self.lora_B = nn.Parameter(torch.zeros((r, out_features), device=self.weight.device, dtype=torch.bfloat16),
+                                   requires_grad=True)
+        nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B)
+
+    def forward(self, x):
+        result = F.linear(x, self.weight)
+        result += self.scale * (x @ self.lora_A @ self.lora_B)
+        return result
+
+
+class EmbeddingLoraLayer(nn.Module):
+    # No bias in LLama3 LinearLayer
+    def __init__(self, in_features, out_features, padding_idx, r=128, weight=None):
+        super().__init__()
+        self.num_embeddings = in_features
+        self.embedding_dim = out_features
+        self.padding_idx = padding_idx
+        self.weight = nn.Parameter(weight, requires_grad=False)
+        self.scale = 2  # The alpha value is usually twice the rank
+        self.lora_A = nn.Parameter(torch.zeros((in_features, r), device=self.weight.device, dtype=torch.bfloat16),
+                                   requires_grad=True)
+        self.lora_B = nn.Parameter(torch.zeros((r, out_features), device=self.weight.device, dtype=torch.bfloat16),
+                                   requires_grad=True)
+        nn.init.zeros_(self.lora_A)
+        nn.init.normal_(self.lora_B)
+
+    def forward(self, x):
+        result = F.embedding(x, self.weight, self.padding_idx)
+        after_A = F.embedding(x, self.lora_A, self.padding_idx)
+        result += self.scale * (after_A @ self.lora_B)
+        return result
+
+
+class CompressLLM(torch.nn.Module):
+    def __init__(self, model_id, mem_size, head_num, device_rank, task_config):
+        super().__init__()
+        self.loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_id,
+            torch_dtype=torch.bfloat16,
+            device_map=f"cuda:{device_rank}",
+        )
+        self.device = f"cuda:{device_rank}"
+        self.task_config = task_config
+        config = self.model.config
+        self.vocab_size = config.vocab_size
+        self.mem_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((mem_size, config.hidden_size)),
+                                       requires_grad=True)
+        self.special_tokens = nn.Parameter(self.model.model.embed_tokens.weight.new_zeros((2, config.hidden_size)),
+                                           requires_grad=True)
+        self.head_num = head_num
+
+        self.compress_head = nn.Linear(config.hidden_size, head_num * config.vocab_size, bias=False,
+                                       device=f"cuda:{device_rank}",
+                                       dtype=self.model.model.embed_tokens.weight.dtype)
+
+        # self.compress_head = nn.Sequential(
+        #     nn.Linear(config.hidden_size, head_num*128, bias=False, device=f"cuda:{device_rank}", dtype=self.model.model.embed_tokens.weight.dtype),
+        #     nn.Linear(head_num*128, head_num*config.vocab_size, bias=False, device=f"cuda:{device_rank}", dtype=self.model.model.embed_tokens.weight.dtype)
+        #     )
+        mean = torch.mean(self.model.model.embed_tokens.weight).item()
+        std = torch.std(self.model.model.embed_tokens.weight).item()
+        nn.init.normal_(self.mem_tokens, mean=mean, std=std)
+        nn.init.normal_(self.special_tokens, mean=mean, std=std)
+
+    def forward(self, inputs):
+        # ->LlamaForCausalLM->LlamaModel->embed_tokens
+        if self.task_config["use_multi_lora"]:
+            mask = {"lm_mask": torch.ones_like(inputs['input_ids'])}
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
+        else:
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
+        bsz, seq_len, emb_size = inputs_embeds.size()
+        mem_size = self.mem_tokens.size(0)
+        expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
+        encode_inputs_embeds = torch.cat([inputs_embeds, expand_mem], dim=1)
+
+        # [1,seq_len]
+        position_ids = torch.arange(1, seq_len + 1, device=inputs_embeds.device).unsqueeze(0)
+        # [1,mem_size]
+        mem_position_ids = torch.arange((self.head_num + 1) // 2, self.head_num * mem_size + 1, step=self.head_num,
+                                        device=inputs_embeds.device).unsqueeze(0)
+        # [1,seq_len+mem_size]
+        encode_position_ids = torch.cat([position_ids, mem_position_ids], dim=1)
+
+        # print(f"encode_inputs_embeds:{encode_inputs_embeds.shape}")
+        # print(f"position_ids:{position_ids.shape}, mem_position_ids:{mem_position_ids.shape}")
+
+        # make three masks：cl_mask、lm_mask、cl_prime_mask
+        if self.task_config["use_multi_lora"]:
+            mask = make_masks(inputs_embeds, expand_mem)
+
+            # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+            if "wo_pe" in self.task_config:
+                # print("here no pe")
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                    mask=mask,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                    mask=mask,
+                )
+        else:
+            if "wo_pe" in self.task_config:
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
+
+        hidden_states = outputs.hidden_states[-1]
+
+        # [B,mem_size,emb_size]
+        mem_hidden = hidden_states[:, -mem_size:]
+        # [B,seq_len,vocab_size]
+        original_logits = outputs.logits[:, :seq_len]
+
+        tot_loss = 0
+        tot_task = 0
+        loss_info = {}
+
+        use_cmp = False
+        if "instruction_fine-tuning_add_compress_loss" in self.task_config and self.task_config[
+            "instruction_fine-tuning_add_compress_loss"]:
+            use_cmp = True
+        # compress loss：压缩的是输入的context，并不是prompt和answer
+        if use_cmp:
+            # print("compress_targets will be used")
+            # [B,mem_size,emb_size] -> [B,mem_size,head_num*vocab_size]
+            logits = self.compress_head(mem_hidden)
+
+            # extract original logits
+            # [B,mem_size,head_num*vocab_size] -> [B,tot_Seg_len,V] -> [B,seq_len,V]
+            logits = logits.reshape(bsz, mem_size * self.head_num, self.vocab_size)
+            logits = logits[:, :seq_len, :]
+
+            logits = logits.float()
+            logits = logits.contiguous().view(-1, self.vocab_size)
+
+            compress_targets = inputs["input_ids"].contiguous().view(-1).to(logits.device)
+
+            compress_loss = self.loss_fct(logits, compress_targets)
+            loss_info["compress_loss"] = compress_loss.item()
+            tot_loss += compress_loss
+            tot_task += 1
+
+            # LM loss
+        if 'lm_targets' in inputs and self.task_config["use_lm_loss"]:
+
+            if inputs['lm_targets'] is None:
+                if original_logits.shape[1] != inputs["instruction_target"].shape[
+                    1]:  # if only <eos> in next segment, they will be equal.
+                    # no token after <eos> [context + prompt + answer 510]
+                    original_logits = original_logits[:, :-1]
+                logits = original_logits.contiguous().view(-1, self.vocab_size)
+                inputs["instruction_target"] = inputs["instruction_target"].contiguous().view(-1).to(logits.device)
+
+                lm_loss = self.loss_fct(logits, inputs["instruction_target"])
+                loss_info["lm_loss"] = lm_loss.item()
+                return {"loss": lm_loss, "loss_info": loss_info}
+
+            if self.task_config["use_multi_lora"]:
+                mask = {"lm_mask": torch.ones_like(inputs['lm_targets'][:, :-1])}
+                # [B,seq_len-1] -> [B,seq_len-1,E]
+                lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:, :-1], mask)
+            else:
+                lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:, :-1])
+
+            # [1,E] -> [1,1,E] -> [B,1,E]
+            expand_lm_token = self.special_tokens[1:2].unsqueeze(0).expand(bsz, 1, emb_size)
+
+            # todo: 1.将mem_hidden设置为0, .detach()
+            #  [B,mem_size,E];     [B,1,E];      [B,seq_len-1,E]
+            lm_emb = torch.cat([mem_hidden, expand_lm_token, lm_target_emb], dim=1)
+
+            latter_position_ids = torch.arange(seq_len, seq_len + 1 + lm_target_emb.size(1),
+                                               device=inputs_embeds.device).unsqueeze(0)
+            lm_position_ids = torch.cat([mem_position_ids, latter_position_ids], dim=1)
+
+            # make three masks
+            if self.task_config["use_multi_lora"]:
+                mask = make_masks(torch.cat([expand_lm_token, lm_target_emb], dim=1), mem_hidden,
+                                  compress_prime_token=True)
+                if "wo_pe" in self.task_config:
+                    outputs = self.model(
+                        inputs_embeds=lm_emb,
+                        mask=mask,
+                    )
+                else:
+                    outputs = self.model(
+                        position_ids=lm_position_ids,
+                        inputs_embeds=lm_emb,
+                        mask=mask,
+                    )
+            else:
+                if "wo_pe" in self.task_config:
+                    outputs = self.model(
+                        inputs_embeds=lm_emb,
+                    )
+                else:
+                    outputs = self.model(
+                        position_ids=lm_position_ids,
+                        inputs_embeds=lm_emb,
+                    )
+
+            # [B,mem_size+S,V] -> [B,S,V]
+            logits = outputs.logits[:, mem_size:]
+
+            # here, we cat the whole seq's logits
+            logits = torch.cat([original_logits, logits[:, 1:]], dim=1)
+            logits = logits.contiguous().view(-1, self.vocab_size)
+            inputs["instruction_target"] = inputs["instruction_target"].contiguous().view(-1).to(logits.device)
+
+            lm_loss = self.loss_fct(logits, inputs["instruction_target"])
+            loss_info["lm_loss"] = lm_loss.item()
+            tot_loss += lm_loss
+            tot_task += 1
+
+        loss = tot_loss / tot_task
+
+        return {"loss": loss, "loss_info": loss_info}
+
+    def lm_inference(self, inputs, segment_size):
+        # ->LlamaForCausalLM->LlamaModel->embed_tokens
+        if self.task_config["use_multi_lora"]:
+            mask = {"lm_mask": torch.ones_like(inputs["input_ids"])}
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
+        else:
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
+        bsz, seq_len, emb_size = inputs_embeds.size()
+        mem_size = self.mem_tokens.size(0)
+
+        # [1,seq_len]
+        position_ids = torch.arange(1, seq_len + 1, device=inputs_embeds.device).unsqueeze(0)
+
+        if inputs['lm_targets'] is None:
+            generate_text = []
+            past_key_values = None
+            next_inputs_embeds = inputs_embeds.clone()
+            next_position_ids = position_ids.clone()
+
+            for i in range(4096):
+                if self.task_config["use_multi_lora"]:
+                    mask = {"lm_mask": torch.ones_like(next_inputs_embeds)}
+                    if "wo_pe" in self.task_config:
+                        out = self.model(inputs_embeds=next_inputs_embeds, past_key_values=past_key_values,
+                                         use_cache=True, mask=mask)
+                    else:
+                        out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds,
+                                         past_key_values=past_key_values, use_cache=True, mask=mask)
+                else:
+                    if "wo_pe" in self.task_config:
+                        out = self.model(inputs_embeds=next_inputs_embeds, past_key_values=past_key_values,
+                                         use_cache=True)
+                    else:
+                        out = self.model(position_ids=next_position_ids, inputs_embeds=next_inputs_embeds,
+                                         past_key_values=past_key_values, use_cache=True)
+                # [B,S,V] -> [B,V]
+                logit = out.logits[:, -1]
+                past_key_values = out.past_key_values
+                # [B,V]->[B]
+                next_token_id = torch.argmax(logit, dim=-1)
+
+                # [B]->[B,E]->[B,1,E]
+                if self.task_config["use_multi_lora"]:
+                    mask = {"lm_mask": torch.ones_like(next_token_id)}
+                    next_inputs_embeds = self.model.model.embed_tokens(next_token_id, mask).unsqueeze(1).to(
+                        inputs_embeds.device)
+                else:
+                    next_inputs_embeds = self.model.model.embed_tokens(next_token_id).unsqueeze(1).to(
+                        inputs_embeds.device)
+                next_position_ids = next_position_ids[:, -1:] + 1  # [1, seq_len]/[1,1] -> [1,1]
+                generate_text.append(next_token_id.item())
+                if next_token_id.item() == 2:  # eos
+                    return generate_text
+                if next_position_ids.item() > segment_size:
+                    expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
+                    encode_inputs_embeds = expand_mem
+
+                    # [1,mem_size]
+                    mem_position_ids = torch.arange((self.head_num + 1) // 2, segment_size + 1, step=self.head_num,
+                                                    device=inputs_embeds.device).unsqueeze(0)
+                    # [1,seq_len+mem_size]
+                    encode_position_ids = torch.cat([position_ids, mem_position_ids], dim=1)
+
+                    if self.task_config["use_multi_lora"]:
+                        mask = {"cl_mask": torch.ones_like(encode_inputs_embeds)}
+                        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+                        if "wo_pe" in self.task_config:
+                            outputs = self.model(
+                                inputs_embeds=encode_inputs_embeds,
+                                past_key_values=past_key_values,
+                                use_cache=True,
+                                output_hidden_states=True,
+                                mask=mask,
+                            )
+                        else:
+                            outputs = self.model(
+                                position_ids=mem_position_ids,
+                                inputs_embeds=encode_inputs_embeds,
+                                past_key_values=past_key_values,
+                                use_cache=True,
+                                output_hidden_states=True,
+                                mask=mask,
+                            )
+                    else:
+                        if "wo_pe" in self.task_config:
+                            outputs = self.model(
+                                inputs_embeds=encode_inputs_embeds,
+                                past_key_values=past_key_values,
+                                use_cache=True,
+                                output_hidden_states=True,
+                            )
+                        else:
+                            outputs = self.model(
+                                position_ids=mem_position_ids,
+                                inputs_embeds=encode_inputs_embeds,
+                                past_key_values=past_key_values,
+                                use_cache=True,
+                                output_hidden_states=True,
+                            )
+
+                    hidden_states = outputs.hidden_states[-1]
+
+                    # [B,mem_size,emb_size]
+                    mem_hidden = hidden_states[:, -mem_size:]
+
+                    # [1,E] -> [1,1,E] -> [B,1,E]
+                    expand_lm_token = self.special_tokens[1:2].unsqueeze(0).expand(bsz, 1, emb_size)
+
+                    #                  [B,mem_size,E];     [B,1,E];
+                    lm_emb = torch.cat([mem_hidden, expand_lm_token], dim=1)
+
+                    #                              [1,mem_size];    [1,1];
+                    lm_position_ids = torch.cat([mem_position_ids, next_position_ids - 1], dim=1)
+
+                    past_key_values = None
+
+                    if self.task_config["use_multi_lora"]:
+                        mask = make_masks(mem_hidden, expand_lm_token, compress_prime_token=True)
+                        if "wo_pe" in self.task_config:
+                            out = self.model(inputs_embeds=lm_emb,
+                                             past_key_values=past_key_values, use_cache=True, mask=mask)
+                        else:
+                            out = self.model(position_ids=lm_position_ids, inputs_embeds=lm_emb,
+                                             past_key_values=past_key_values, use_cache=True, mask=mask)
+                    else:
+                        if "wo_pe" in self.task_config:
+                            out = self.model(inputs_embeds=lm_emb,
+                                             past_key_values=past_key_values, use_cache=True)
+                        else:
+                            out = self.model(position_ids=lm_position_ids, inputs_embeds=lm_emb,
+                                             past_key_values=past_key_values, use_cache=True)
+                    past_key_values = out.past_key_values
+
+                    # next_token_id and next_position_ids don't be changed here.
+
+        else:
+            if self.task_config["use_multi_lora"]:
+                mask = {"lm_mask": torch.ones_like(inputs['lm_targets'])}
+                after_embeds = self.model.model.embed_tokens(inputs['lm_targets'], mask)
+            else:
+                after_embeds = self.model.model.embed_tokens(inputs['lm_targets'])
+            expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
+            encode_inputs_embeds = torch.cat([inputs_embeds, expand_mem], dim=1)
+
+            # [1,mem_size]
+            mem_position_ids = torch.arange((self.head_num + 1) // 2, segment_size + 1, step=self.head_num,
+                                            device=inputs_embeds.device).unsqueeze(0)
+            # [1,seq_len+mem_size]
+            encode_position_ids = torch.cat([position_ids, mem_position_ids], dim=1)
+
+            if self.task_config["use_multi_lora"]:
+                mask = make_masks(inputs_embeds, expand_mem)
+                # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+                if "wo_pe" in self.task_config:
+                    outputs = self.model(
+                        inputs_embeds=encode_inputs_embeds,
+                        output_hidden_states=True,
+                        mask=mask,
+                    )
+                else:
+                    outputs = self.model(
+                        position_ids=encode_position_ids,
+                        inputs_embeds=encode_inputs_embeds,
+                        output_hidden_states=True,
+                        mask=mask,
+                    )
+            else:
+                if "wo_pe" in self.task_config:
+                    outputs = self.model(
+                        inputs_embeds=encode_inputs_embeds,
+                        output_hidden_states=True,
+                    )
+                else:
+                    outputs = self.model(
+                        position_ids=encode_position_ids,
+                        inputs_embeds=encode_inputs_embeds,
+                        output_hidden_states=True,
+                    )
+
+            hidden_states = outputs.hidden_states[-1]
+
+            # [B,mem_size,emb_size]
+            mem_hidden = hidden_states[:, -mem_size:]
+
+            # [1,E] -> [1,1,E] -> [B,1,E]
+            expand_lm_token = self.special_tokens[1:2].unsqueeze(0).expand(bsz, 1, emb_size)
+
+            #                     [B,mem_size,E];     [B,1,E];      [B,seq_len-1,E]
+            lm_emb = torch.cat([mem_hidden, expand_lm_token, after_embeds], dim=1)
+
+            after_len = expand_lm_token.size(1) + after_embeds.size(1)
+            after_position_ids = torch.arange(segment_size, segment_size + after_len,
+                                              device=inputs_embeds.device).unsqueeze(0)
+            #                              [1,mem_size];    [1,seq_len];
+            lm_position_ids = torch.cat([mem_position_ids, after_position_ids], dim=1)
+            lm_emb = torch.cat([inputs_embeds, after_embeds], dim=1)
+            after_len = after_embeds.size(1)
+            after_position_ids = torch.arange(segment_size, segment_size + after_len,
+                                              device=inputs_embeds.device).unsqueeze(0)
+            #                              [1,mem_size];    [1,seq_len];
+            lm_position_ids = torch.cat([position_ids, after_position_ids], dim=1)
+
+
+            generate_text = []
+            past_key_values = None
+            next_inputs_embeds = lm_emb.clone()
+            next_position_ids = lm_position_ids.clone()
+            if self.task_config["use_multi_lora"]:
+                mask = make_masks(torch.cat([expand_lm_token, after_embeds], dim=1), mem_hidden,
+                                  compress_prime_token=True)
+            for i in range(100):
+                # print(f"next_position_ids:{next_position_ids}")
+                if self.task_config["use_multi_lora"]:
+                    if "wo_pe" in self.task_config:
+                        out = self.model(inputs_embeds=next_inputs_embeds,
+                                         past_key_values=past_key_values,
+                                         use_cache=True,
+                                         mask=mask)
+                    else:
+                        out = self.model(position_ids=next_position_ids,
+                                         inputs_embeds=next_inputs_embeds,
+                                         past_key_values=past_key_values,
+                                         use_cache=True,
+                                         mask=mask)
+                else:
+                    if "wo_pe" in self.task_config:
+                        out = self.model(inputs_embeds=next_inputs_embeds,
+                                         past_key_values=past_key_values,
+                                         use_cache=True)
+                    else:
+                        out = self.model(position_ids=next_position_ids,
+                                         inputs_embeds=next_inputs_embeds,
+                                         past_key_values=past_key_values,
+                                         use_cache=True)
+                # [B,S,V] -> [B,V]
+                logit = out.logits[:, -1]
+                past_key_values = out.past_key_values
+                # [B,V]->[B]
+                next_token_id = torch.argmax(logit, dim=-1)
+
+                # [B]->[B,E]->[B,1,E]
+                if self.task_config["use_multi_lora"]:
+                    mask = {"lm_mask": torch.ones_like(next_token_id)}
+                    next_inputs_embeds = self.model.model.embed_tokens(next_token_id, mask).unsqueeze(1).to(
+                        inputs_embeds.device)
+                    mask = {"lm_mask": torch.ones_like(next_inputs_embeds)}
+                else:
+                    next_inputs_embeds = self.model.model.embed_tokens(next_token_id).unsqueeze(1).to(
+                        inputs_embeds.device)
+                # todo: 不是很理解这里每次都是[1,1]和+1的作用
+                next_position_ids = next_position_ids[:, -1:] + 1  # [1, seq_len]/[1,1] -> [1,1]
+                generate_text.append(next_token_id.item())
+                if next_token_id.item() == 2:
+                    return generate_text
+
+            return generate_text
+        return generate_text
+
+    def cl_inference(self, inputs, segment_size):
+        # ->LlamaForCausalLM->LlamaModel->embed_tokens
+        # todo:1.
+        if self.task_config["use_multi_lora"]:
+            mask = {"lm_mask": torch.ones_like(inputs['input_ids'])}
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
+        else:
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
+        bsz, seq_len, emb_size = inputs_embeds.size()
+        mem_size = self.mem_tokens.size(0)
+        expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
+        encode_inputs_embeds = torch.cat([inputs_embeds, expand_mem], dim=1)
+
+        # [1,seq_len]
+        position_ids = torch.arange(1, seq_len + 1, device=inputs_embeds.device).unsqueeze(0)
+        # [1,mem_size]
+        mem_position_ids = torch.arange((self.head_num + 1) // 2, segment_size + 1, step=self.head_num,
+                                        device=inputs_embeds.device).unsqueeze(0)
+        # [1,seq_len+mem_size]
+        encode_position_ids = torch.cat([position_ids, mem_position_ids], dim=1)
+
+        # todo:2.
+        if self.task_config["use_multi_lora"]:
+            mask = make_masks(inputs_embeds, expand_mem)
+            # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+            if "wo_pe" in self.task_config:
+                # print("no pe in here")
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                    mask=mask,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                    mask=mask,
+                )
+        else:
+            if "wo_pe" in self.task_config:
+                # print("no pe in here")
+                outputs = self.model(
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
+            else:
+                outputs = self.model(
+                    position_ids=encode_position_ids,
+                    inputs_embeds=encode_inputs_embeds,
+                    output_hidden_states=True,
+                )
+
+        hidden_states = outputs.hidden_states[-1]
+
+        # [B,mem_size,emb_size]
+        mem_hidden = hidden_states[:, -mem_size:]
+        # [B,mem_size,emb_size] -> [B,mem_size,head_num*vocab_size]
+        logits = self.compress_head(mem_hidden).float()
+        # [B*mem_size*head_num,vocab_size]
+        logits = logits.contiguous().view(-1, self.vocab_size)
+        # [b*m*h,v] -> [b*m*h]
+        generate_text = torch.argmax(logits, dim=-1).tolist()
+
+        return generate_text
+
+
+def make_masks(input_token=None, compress_token=None, compress_prime_token=False):
+    # make three masks：cl_mask、lm_mask、cl_prime_mask
+    mask = {}
+    if compress_prime_token:
+        lm_zero_mask = torch.zeros_like(compress_token, dtype=torch.bfloat16).to(input_token.device)
+        lm_ones_mask = torch.ones_like(input_token, dtype=torch.bfloat16).to(input_token.device)
+        lm_mask = torch.cat([lm_zero_mask, lm_ones_mask], dim=1).to(input_token.device)
+
+        cl_prime_ones_mask = torch.ones_like(compress_token, dtype=torch.bfloat16).to(input_token.device)
+        cl_prime_zero_mask = torch.zeros_like(input_token, dtype=torch.bfloat16).to(input_token.device)
+        cl_prime_mask = torch.cat([cl_prime_ones_mask, cl_prime_zero_mask], dim=1).to(input_token.device)
+
+        mask.update({"cl_prime_mask": cl_prime_mask, "lm_mask": lm_mask, })
+    else:
+        cl_zero_mask = torch.zeros_like(input_token, dtype=torch.bfloat16).to(input_token.device)
+        cl_ones_mask = torch.ones_like(compress_token, dtype=torch.bfloat16).to(input_token.device)
+        cl_mask = torch.cat([cl_zero_mask, cl_ones_mask], dim=1).to(input_token.device)
+
+        lm_ones_mask = torch.ones_like(input_token, dtype=torch.bfloat16).to(input_token.device)
+        lm_zero_mask = torch.zeros_like(compress_token, dtype=torch.bfloat16).to(input_token.device)
+        lm_mask = torch.cat([lm_ones_mask, lm_zero_mask], dim=1).to(input_token.device)
+
+        mask.update({"cl_mask": cl_mask, "lm_mask": lm_mask, })
+    return mask
+
+
+def save_adapter(model, save_path_and_name='adapter.pt', log=False):
+    adapter_name = set()
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            if log:
+                print("[Save Adapter]", name)
+            adapter_name.add(name)
+
+    state_dict = model.state_dict()
+    adapter_state_dict = {name: param for name, param in state_dict.items() if name in adapter_name}
+    torch.save(adapter_state_dict, save_path_and_name)
+
+
+def load_adapter(model, save_path_and_name='adapter.pt', log=False):
+    adapter_state_dict = torch.load(save_path_and_name, map_location='cpu')  # 先加载到CPU
+    if log:
+        print("Loading adapter parameters:")
+        for name, weight in adapter_state_dict.items():
+            print(f"[Load Adapter] {name}")
+    # 将adapter的权重转移到模型的设备上
+    adapter_state_dict = {k: v.to(model.device) for k, v in adapter_state_dict.items()}
+
+    model.load_state_dict(adapter_state_dict, strict=False)
+    return model
+
+
+def load_adapter_to_merge_weight(model, train_adapter='adapter.pt', instruction_adapter="", is_train=False):
+    def merge_weight(model):
+        for name, module in model.named_children():  # adapter是W'=W+AB -> instruction_adapter是
+            if name == "compress_head":
+                continue
+            if isinstance(module, LinearLoraLayer) or isinstance(module, EmbeddingLoraLayer):
+                lora_AB = module.lora_A.data @ module.lora_B.data
+                if module.weight.data.shape == lora_AB.shape:
+                    module.weight.data += lora_AB * module.scale
+                else:
+                    module.weight.data += lora_AB.transpose(0, 1) * module.scale
+            else:
+                merge_weight(module)
+
+    def init_lora(model, task_config):
+        for name, module in model.named_children():
+            if name == "compress_head":
+                continue
+            if isinstance(module, LinearLoraLayer):
+                setattr(model, name,
+                        LinearLoraLayer(module.in_features, module.out_features, r=16,
+                                        weight=module.weight.data.clone()))
+            elif isinstance(module, EmbeddingLoraLayer):
+                setattr(model, name,
+                        EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx, r=128,
+                                           weight=module.weight.data.clone()))
+            else:
+                # Recursively apply this function to submodules
+                init_lora(module, task_config)
+
+    adapter_state_dict = torch.load(train_adapter, map_location='cpu')  # 先加载到CPU
+    # 将adapter的权重转移到模型的设备上
+    adapter_state_dict = {k: v.to(model.device) for k, v in adapter_state_dict.items()}
+
+    model.load_state_dict(adapter_state_dict, strict=False)
+    # W' -> W + AB
+    merge_weight(model)
+    init_lora(model, task_config="")
+    # merge lora weight to origin
+    if is_train:
+        logging.info("train：merge lora weight to origin")
+    else:
+        # load A'B'
+        adapter_state_dict = torch.load(instruction_adapter, map_location='cpu')  # 先加载到CPU
+        # 将adapter的权重转移到模型的设备上
+        adapter_state_dict = {k: v.to(model.device) for k, v in adapter_state_dict.items()}
+        # finally -> h = W' + A'B' = W + AB + A'B'
+        model.load_state_dict(adapter_state_dict, strict=False)
+        logging.info("evaluator：no merge lora weight to origin")
+    return model
+
+
+def get_model_for_compress(model_id, task_config, rank):
+    def add_compress_lora(model, task_config):
+        for name, module in model.named_children():
+            if name == "compress_head":
+                continue
+            if isinstance(module, nn.Linear):
+                setattr(model, name,
+                        LinearLoraLayer(module.in_features, module.out_features, r=16,
+                                        weight=module.weight.data.clone()))
+            elif isinstance(module, nn.Embedding):
+                setattr(model, name,
+                        EmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx, r=128,
+                                           weight=module.weight.data.clone()))
+            else:
+                # Recursively apply this function to submodules
+                add_compress_lora(module, task_config)
+
+    def add_multi_lora(model, task_config):
+        for name, module in model.named_children():
+            if name == "compress_head":
+                continue
+            if isinstance(module, nn.Linear):
+                setattr(model, name,
+                        TripleLinearLoraLayer(module.in_features, module.out_features, r_cl=16, r_lm=16, r_cl_prime=16,
+                                              weight=module.weight.data.clone()))
+            elif isinstance(module, nn.Embedding):
+                setattr(model, name,
+                        TripleEmbeddingLoraLayer(module.num_embeddings, module.embedding_dim, module.padding_idx,
+                                                 r_cl=128, r_lm=128, r_cl_prime=128, weight=module.weight.data.clone()))
+            else:
+                # Recursively apply this function to submodules
+                add_multi_lora(module, task_config)
+
+    # config = BitsAndBytesConfig(
+    #     load_in_4bit=True,
+    #     bnb_4bit_quant_type="nf4",
+    #     bnb_4bit_use_double_quant=True,
+    #     bnb_4bit_compute_dtype=torch.bfloat16,
+    # )
+    if task_config["use_multi_lora"]:
+        modify_llama()
+        model = CompressLLM(
+            model_id,
+            mem_size=task_config["mem_size"],
+            head_num=task_config["head_num"],
+            device_rank=rank,
+            task_config=task_config
+        )
+        add_multi_lora(model, task_config)
+    else:
+        model = CompressLLM(
+            model_id,
+            mem_size=task_config["mem_size"],
+            head_num=task_config["head_num"],
+            device_rank=rank,
+            task_config=task_config
+        )
+        add_compress_lora(model, task_config)
+    return model
+
+
+def get_model(model_id, task_config, rank):
+    if task_config["task_type"] == "Compress":
+        return get_model_for_compress(model_id, task_config, rank)
+    raise Exception("Don't exist [{task_type}] task.")
+
+
+def load_model_with_adapter(model_id, task_config, rank, save_path_and_name='adapter.pt', log=False):
+    model = get_model(model_id, task_config, rank)
+    load_adapter(model, save_path_and_name, log)
+    return model
+def pad_sequence(sequence, max_length, pad_value=0):
+    """
+    将序列填充到指定长度。
+    :param sequence: 原始序列（List[int]）
+    :param max_length: 目标长度
+    :param pad_value: 填充值（默认为0）
+    :return: 填充后的序列
+    """
+    res = pad_value * (max_length - len(sequence)) + sequence
+    return res[-510:]
+
+# python /home/liuxinyu/zrs/forget-me-not/models/llama3.py
+
+work_dir = "../compressLLM_random_instruction_compress_token_to_context"
 with open(work_dir + f'/config.json') as f:
     config =json.load(f)
 
@@ -340,26 +1331,82 @@ config["data_config"]["model_id"] = "../../../models/TinyLlama/TinyLlama_v1.1"
 world_size = torch.cuda.device_count()
 tokenizer = AutoTokenizer.from_pretrained(config["data_config"]["model_id"], token=config["data_config"]["hf_token"])
 
-print("calculate BLEU4...")
+model = get_model(config["data_config"]["model_id"], config["task_config"], 0)
+model = load_adapter(model, save_path_and_name=work_dir+'/instruction_adapter.pt', log=False)
+with torch.no_grad():
+    model.eval()
+    # 构造inputs{"input_ids:, lm_target:"}
+    # context = "French senior civil servant arrested on suspicion of spying for North Korea\n\nNovember 27, 2018 by Joseph Fitsanakis\n\nA senior civil servant in the upper house of the French parliament has been arrested on suspicion of spying for North Korea, according to prosecutors. The news of the suspected spy’s arrest was first reported on Monday by Quotidien, a daily politics and culture show on the Monaco-based television channel TMC. The show cited “a judicial source in Paris” and said that France’s domestic security and counterintelligence agency, the General Directorate for Internal Security (DGSI), was in charge of the espionage case.\n\nThe senior administrator has been identified as Benoit Quennedey, a civil servant who liaises between the French Senate and the Department of Architecture and Heritage, which operates under France’s Ministry of Culture. Quennedey was reportedly detained on Sunday morning and his office in the French Senate was raided by DGSI officers on the same day. Quotidien said that he was arrested on suspicion of “collecting and delivering to a foreign power information likely to subvert core national interests”. The report did not provide specific information about the type of information that Quennedey is believed to have passed to North Korea. It did state, however, that a counterintelligence investigation into his activities began in March of this year.\n\nQuennedey is believed to be the president of the Franco-Korean Friendship Association, the French branch of a Spanish-based organization that lobbies in favor of international support for North Korea. Korea Friendship Association branches exist in over 30 countries and are believed to be officially sanctioned by Pyongyang. They operate as something akin to the pre-World War II Comintern (Communist International), a Moscow-sanctioned international pressure group that advocated in favor of Soviet-style communism around the world. French media reported on Monday that Quennedey traveled extensively to the Korean Peninsula in the past decade and has written a French-language book on North Korea. News reports said that the French President Emmanuel Macron had been made aware of Quennedey’s arrest. The senior civil servant faces up to 30 years in prison if found guilty of espionage.\n\n► Author: Joseph Fitsanakis | Date: 27 November 2018 | Permalink\n\n"
+    # context = "Gone are the days when America’s standing in the world was contrasted primarily with that of the Soviet Union. Instead, the United States and China now compete to be the more favored world power.\n\nThe U.S. and China engender roughly the same level of goodwill. China is particularly well-liked in Latin America and the Middle East, while the U.S. fares better in Europe and the Asia-Pacific region.\n\nHowever, America’s weakening image in many nations has taken a toll on the country’s once-solid lead over China. And China’s own favorability has strengthened in recent years in Canada, Australia, Lebanon and Turkey.\n\nSince the most recent year Pew Research Center polled in 36 nations – 2014, 2015 or 2016, depending on the country – the number of nations in which the U.S. holds a competitive advantage in favorability over China has halved, from 25 to 12. (Differences of less than 6 percentage points are considered ties.) Whereas the U.S. once had a 12-point lead over China in terms of a global median, that lead has shrunk in 2017 to 2 points.\n\nIn six nations – Spain, Mexico, Turkey, Australia, Peru and Senegal – the dynamic between the two superpowers has flipped, with China overtaking the U.S. in favorability.\n\nAnd the United States’ once-significant lead over China in popularity has fallen to a virtual tie in another seven countries: Kenya, Germany, France, Brazil, Sweden, the UK and Canada.\n\nMeanwhile, in 12 nations, people view America more favorably than they do China: Vietnam, Israel, the Philippines, South Korea, Poland, Hungary, Italy, Ghana, Japan, South Africa, Colombia and India.\n\nA quarter-century after the collapse of the Soviet Union, Russia is viewed far less favorably than either the U.S. or China in most of the world, though America’s recent steep decline in image has improved Russia’s standing compared with that of the U.S.\n\nAmerica’s edge over Russia has contracted by more than 20 percentage points in 15 out of the 33 nations for which Pew Research Center has trend data on favorability toward Russia. These include Spain, France, Chile, Brazil, Italy, Australia and Tanzania.\n\nThe narrowing of the U.S.-Russia favorability gap is most striking in Mexico, where the 42-point advantage held by the U.S. over Russia in 2015 is all but gone. Mexicans now view the U.S. and Russia roughly the same.\n\n"
+    # context = "Journey to the West is one of the four great classical novels of China. It was written by Wu Chengen, a writer in the Ming Dynasty. The novel takes the four Tang monks and their disciples as the main line, and integrates Taoism, Buddhism, Confucianism, as well as myths and legends, folk stories, historical stories and other elements in traditional Chinese culture, which has high literary value and historical status. The story is set in the Tang Dynasty, which mainly tells the story of four Tang monks, teachers and apprentices who went through ninety-eight one difficulties and finally obtained the true Scriptures. The following are the main characters and synopsis: 1. Tang Monk (Tang Sanzang) : Born Chen Xuanzang, a reincarnated son of the Golden cicada, he was ordered by Emperor Taizong to go to the West to learn scriptures. He was kind and compassionate, but sometimes too kind and gullible. 2. Monkey King (Monkey King) : Incarnated stone monkey, with 72 changes, somersault cloud and other supernatural powers. Smart, brave and loyal, he was a great disciple of the Tang Monk and was responsible for protecting his master's journey to the West. In the story, Sun Wukong saves Tang Monk and his disciples from danger many times. 3. Zhu Bajie (Wu Neng) : Originally a marshal of the sky Peng, he was banished to the world for molesting Chang 'e and was reborn as a pig. He was lazy, greedy for money and lustful, but honest and honest, was the Tang monk's two apprentices. 4. Sand Monk (Wujing) : Originally a rolling curtain general, he was relegated to the world for breaking glasses and became a sand monk. He was composed, loyal and reliable, and was one of the three disciples of the Tang Monk. The following is a summary of the story: 1. Tang Monk set out: Tang Monk was ordered by Emperor Taizong to go to the West Heaven to collect scriptures. Under the guidance of Guanyin Bodhisattva, he accepted three disciples, Sun Wukong, Zhu Bajie and Sha Seng successively. 2. Three dozen White Bone Essence: Tang Monk and his disciples encountered white bone essence through White Hu Ling. Sun Wukong discovers and defeats the White Bone Spirit three times, but Tang Monk misunderstands Wukong and drives him away. 3. Monkey King returns: The Tang Monk is captured by the Yellow Robe monster in the Treasure Elephant Country, and Zhu Bajie and Sha Seng are unable to rescue the master. After Sun Wukong learned the news, he returned to Master Men, surrendered the yellow robe monster, and rescued Tang Monk. 4. Red Boy: Tang Monk and his disciples pass through the Fire Cloud Cave and encounter Red Boy. Sun Wukong invited Guanyin Bodhisattva to surrender the Red Boy and make him a good fortune boy. 5. Daughter's Kingdom: Tang Monk's master and apprentice pass through the daughter's Kingdom, the king falls in love with Tang Monk and wants to recruit him as emperor's son-in-law. With the help of Sun Wukong, Tang Monk fled the Kingdom of Women. 6. True or false Monkey King: Sun Wukong killed the robber and was driven away by Tang Monk. Six-eared macaques pretend to be Sun Wukong and deceive Tang Monk. Finally, the Tathagata Buddha saw through the six-ear macaque, and Sun Wukong returned to Master. 7. 9981 difficulties: Tang Monk went through the 9981 difficulties and finally reached the West. With the help of the Goddess of Mercy Bodhisattva, the Tathagata Buddha and other divine Buddhas, we can obtain the true sutra. 8. Five holy achievements: The Tang monk and his disciples returned to the eastern soil and spread the true Sutra to the world. Tang Monk, Sun Wukong, Zhu Bajie, Sha Seng and Bai Longma were awarded the titles of Golden Arhat, Fighting Buddha, Pure Altar Messenger, Golden Arhat and eight Heavenly Dragon Guangzhi Bodhisattva respectively. Journey to the West, by telling the story of Tang Monk's masters and apprentices, conveys the values of loyalty, bravery, kindness and unity, which has high literary value and historical status."
+    # context = "As of the census of 2000, there were 218,590 people, 79,667 households, and 60,387 families residing in the county. The population density was 496 people per square mile (192/km²). There were 83,146 housing units at an average density of 189 per square mile (73/km²). The racial makeup of the county was 86.77% Race (United States Census), 9.27% Race (United States Census), 0.23% Race (United States Census), 1.52% Race (United States Census), 0.06% Race (United States Census), 0.69% from Race (United States Census), and 1.47% from two or more races. 1.91% of the population were Race (United States Census) or Race (United States Census) of any race. 22.5% were of German people, 13.1% Irish people, 9.8% Italian people, 9.2% English, 8.1% American and 6.0% Polish ancestry."
+    # context =  "Super Bowl 50 was an American football game to determine the champion of the National Football League (NFL) for the 2015 season. The American Football Conference (AFC) champion Denver Broncos defeated the National Football Conference (NFC) champion Carolina Panthers 24–10 to earn their third Super Bowl title. The game was played on February 7, 2016, at Levi's Stadium in the San Francisco Bay Area at Santa Clara, California. As this was the 50th Super Bowl, the league emphasized the \"golden anniversary\" with various gold-themed initiatives, as well as temporarily suspending the tradition of naming each Super Bowl game with Roman numerals (under which the game would have been known as \"Super Bowl L\"), so that the logo could prominently feature the Arabic numerals 50."
+    # context = "Controversial Michael Jackson Comedy Pulled by Sky Following Criticism From Family\n\n\"We set out to take a lighthearted look at reportedly true events and never intended to cause any offense,\" the company said about the episode of 'Urban Myths' featuring Joseph Fiennes as the late music star.\n\nU.K. pay-TV giant Sky said Friday it has decided not to air a TV program about Michael Jackson after his daughter, Paris Jackson, said she was \"incredibly offended\" by the portrayal of the late music star.\n\nThe episode was scheduled to be part of a series called Urban Myths and was set to air on Sky Arts on Jan. 19. It focused on Jackson's fabled road trip from New York to Los Angeles with Elizabeth Taylor and Marlon Brando after the 9/11 attacks.\n\nJoseph Fiennes played Jackson in a controversial decision, Stockard Channing portrayed Taylor, and Brian Cox played Brando.\n\n\"We have taken the decision not to broadcast Elizabeth, Michael and Marlon, a half-hour episode from the Sky Arts Urban Myths series, in light of the concerns expressed by Michael Jackson's immediate family,\" said Sky. \"We set out to take a lighthearted look at reportedly true events and never intended to cause any offense.\"\n\nSky added: \"Joseph Fiennes fully supports our decision.\"\n\nOn Thursday, Paris tweeted following the release of a trailer for the episode. She said the trailer made her \"want to vomit.\" She added: \"It angers me to see how obviously intentional it was for them to be this insulting, not just towards my father, but my godmother Liz as well.\"\n\nA petition to boycott the episode was launched and drew more than 20,000 signatures.\n\nAmid backlash last year to the casting of a white man as the King of Pop, Fiennes told The Hollywood Reporter that, though the program was \"not a biopic,\" he understood why people were \"up in arms.\"\n\n\"The decision with the casting and the producers — I wrangled with it, I was confused and shocked at what might come my way,\" said the actor. \"And I knew the sensitivity, especially to Michael's fans and to Michael's family. It doesn't negate who he was.\"\n\n"
+    # context = "A static equilibrium between two forces is the most usual way of measuring forces, using simple devices such as weighing scales and spring balances. For example, an object suspended on a vertical spring scale experiences the force of gravity acting on the object balanced by a force applied by the \"spring reaction force\", which equals the object's weight. Using such tools, some quantitative force laws were discovered: that the force of gravity is proportional to volume for objects of constant density (widely exploited for millennia to define standard weights); Archimedes' principle for buoyancy; Archimedes' analysis of the lever; Boyle's law for gas pressure; and Hooke's law for springs. These were all formulated and experimentally verified before Isaac Newton expounded his Three Laws of Motion."
+    # context = "Ctenophores may be abundant during the summer months in some coastal locations, but in other places they are uncommon and difficult to find. In bays where they occur in very high numbers, predation by ctenophores may control the populations of small zooplanktonic organisms such as copepods, which might otherwise wipe out the phytoplankton (planktonic plants), which are a vital part of marine food chains. One ctenophore, Mnemiopsis, has accidentally been introduced into the Black Sea, where it is blamed for causing fish stocks to collapse by eating both fish larvae and organisms that would otherwise have fed the fish. The situation was aggravated by other factors, such as over-fishing and long-term environmental changes that promoted the growth of the Mnemiopsis population. The later accidental introduction of Beroe helped to mitigate the problem, as Beroe preys on other ctenophores."
+    # context = "The contracted batch of 15 Saturn Vs were enough for lunar landing missions through Apollo 20.  NASA publicized a preliminary list of eight more planned landing sites, with plans to increase the mass of the CSM and LM for the last five missions, along with the payload capacity of the Saturn V. These final missions would combine the I and J types in the 1967 list, allowing the CMP to operate a package of lunar orbital sensors and cameras while his companions were on the surface, and allowing them to stay on the Moon for over three days.  These missions would also carry the Lunar Roving Vehicle (LRV) increasing the exploration area and allowing televised liftoff of the LM.  Also, the Block II spacesuit was revised for the extended missions to allow greater flexibility and visibility for driving the LRV."
+    # context = "Luther had been suffering from ill health for years, including Ménière's disease, vertigo, fainting, tinnitus, and a cataract in one eye. From 1531 to 1546, his health deteriorated further. The years of struggle with Rome, the antagonisms with and among his fellow reformers, and the scandal which ensued from the bigamy of the Philip of Hesse incident, in which Luther had played a leading role, all may have contributed. In 1536, he began to suffer from kidney and bladder stones, and arthritis, and an ear infection ruptured an ear drum. In December 1544, he began to feel the effects of angina."
+    # context = "Conservative researchers have argued that income inequality is not significant because consumption, rather than income should be the measure of inequality, and inequality of consumption is less extreme than inequality of income in the US. Will Wilkinson of the libertarian Cato Institute states that \"the weight of the evidence shows that the run-up in consumption inequality has been considerably less dramatic than the rise in income inequality,\" and consumption is more important than income. According to Johnson, Smeeding, and Tory, consumption inequality was actually lower in 2001 than it was in 1986. The debate is summarized in \"The Hidden Prosperity of the Poor\" by journalist Thomas B. Edsall. Other studies have not found consumption inequality less dramatic than household income inequality, and the CBO's study found consumption data not \"adequately\" capturing \"consumption by high-income households\" as it does their income, though it did agree that household consumption numbers show more equal distribution than household income."
+    # context = "Tesla was 6 feet 2 inches (1.88 m) tall and weighed 142 pounds (64 kg), with almost no weight variance from 1888 to about 1926. :292 He was an elegant, stylish figure in New York City, meticulous in his grooming, clothing, and regimented in his daily activities."
 
+    # context = "Following the conquest of Dali in 1253, the former ruling Duan dynasty were appointed as governors-general, recognized as imperial officials by the Yuan, Ming, and Qing-era governments, principally in the province of Yunnan.  Succession for the Yuan dynasty, however, was an intractable problem, later causing much strife and internal struggle.  This emerged as early as the end of Kublai's reign.  Kublai originally named his eldest son, Zhenjin, as the Crown Prince, but he died before Kublai in 1285.  Thus, Zhenjin's third son, with the support of his mother Kökejin and the minister Bayan, succeeded the throne and ruled as Temür Khan, or Emperor Chengzong, from 1294 to 1307.  Temür Khan decided to maintain and continue much of the work begun by his grandfather.  He also made peace with the western Mongol khanates as well as neighboring countries such as Vietnam, which recognized his nominal suzerainty and paid tributes for a few decades.  However, the corruption in the Yuan dynasty began during the reign of Temür Khan"
+    # -----------------文本题---------------------------------------------------------------------------------------------
+    # context = "Hoping to break their current losing streak the Cowboys played on home ground for an Interconference duel with the Jaguars. In the first quarter the Cowboys took the lead as kicker David Buehler hit a 34-yard field goal. But they fell behind with QB David Garrard getting a 10-yard TD pass to WR Mike Sims-Walker. In the second quarter, the Cowboys struggled further with Garrard finding TE Marcedes Lewis on a 42-yard TD pass, then in the third quarter he found WR Mike Thomas on a 15-yard TD pass, and then he found Lewis again on a 9-yard TD pass. The Cowboys responded in the 4th quarter with RB Marion Barber getting a 1-yard TD run. But the Jaguars scored again with Garrard scrambling 2 yards to the endzone for a touchdown. The Cowboys replied with QB Jon Kitna making an 8-yard TD pass to TE Jason Witten."
+    # question = "Which quarterback threw more touchdowns?"
+    #
+    # context_ids = tokenizer(context, add_special_tokens=False)["input_ids"]
+    # question_ids = tokenizer(question, add_special_tokens=False)["input_ids"]
+    # input_ids = tokenizer("### Context:\n")["input_ids"] + context_ids
+    #
+    # padding_token = tokenizer('\n', add_special_tokens=False)["input_ids"]
+    # input_ids = pad_sequence(input_ids,510,padding_token)
+    # lm_targets = tokenizer("\n### Question:\n", add_special_tokens=False)["input_ids"] + question_ids + tokenizer("\n### Answer:\n", add_special_tokens=False)["input_ids"]
+    # inputs = {"input_ids":torch.tensor(input_ids).unsqueeze(0).to(model.device),
+    #           "lm_targets":torch.tensor(lm_targets).unsqueeze(0).to(model.device)}
+    # answer = model.lm_inference(inputs,segment_size=510)
+    # answer = tokenizer.decode(answer, skip_special_tokens=True)
+    # cl_generate_text = model.cl_inference(inputs, 510)
+    # cl_generate_text = tokenizer.decode(cl_generate_text, skip_special_tokens=True)
+    # print("answer：",answer)
+    # print("cl_generate_text：",cl_generate_text)
+    # -----------------文本题---------------------------------------------------------------------------------------------
 
-reference = "Komal Uzair and her brother Shayan completed their summit on the ",
-candidate = "Komal Uzair and her brother Shayan completed their summit on apple",
+    # -----------------选择题---------------------------------------------------------------------------------------------
+    # context = "Hoping to break their current losing streak the Cowboys played on home ground for an Interconference duel with the Jaguars. In the first quarter the Cowboys took the lead as kicker David Buehler hit a 34-yard field goal. But they fell behind with QB David Garrard getting a 10-yard TD pass to WR Mike Sims-Walker. In the second quarter, the Cowboys struggled further with Garrard finding TE Marcedes Lewis on a 42-yard TD pass, then in the third quarter he found WR Mike Thomas on a 15-yard TD pass, and then he found Lewis again on a 9-yard TD pass. The Cowboys responded in the 4th quarter with RB Marion Barber getting a 1-yard TD run. But the Jaguars scored again with Garrard scrambling 2 yards to the endzone for a touchdown. The Cowboys replied with QB Jon Kitna making an 8-yard TD pass to TE Jason Witten."
+    # context = "Find the order of the factor group (Z_11 x Z_15)/(<1, 1>).\n(A).1\n(B).2\n(C).5\n(D).11\n"
+    # context = "Find the maximum possible order for an element of S_n for n = 10.\n(A).6(B).12(C).30(D).105"
+    # context = "Find the order of the factor group (Z_11 x Z_15)/(<1, 1>).\n(A).0\n(B).4\n(C).2\n(D).1\n"
+    # context = "French senior civil servant arrested on suspicion of spying for North Korea\n\nNovember 27, 2018 by Joseph Fitsanakis\n\nA senior civil servant in the upper house of the French parliament has been arrested on suspicion of spying for North Korea, according to prosecutors. The news of the suspected spy’s arrest was first reported on Monday by Quotidien, a daily politics and culture show on the Monaco-based television channel TMC. The show cited “a judicial source in Paris” and said that France’s domestic security and counterintelligence agency, the General Directorate for Internal Security (DGSI), was in charge of the espionage case.\n\nThe senior administrator has been identified as Benoit Quennedey, a civil servant who liaises between the French Senate and the Department of Architecture and Heritage, which operates under France’s Ministry of Culture. Quennedey was reportedly detained on Sunday morning and his office in the French Senate was raided by DGSI officers on the same day. Quotidien said that he was arrested on suspicion of “collecting and delivering to a foreign power information likely to subvert core national interests”. The report did not provide specific information about the type of information that Quennedey is believed to have passed to North Korea. It did state, however, that a counterintelligence investigation into his activities began in March of this year.\n\nQuennedey is believed to be the president of the Franco-Korean Friendship Association, the French branch of a Spanish-based organization that lobbies in favor of international support for North Korea. Korea Friendship Association branches exist in over 30 countries and are believed to be officially sanctioned by Pyongyang. They operate as something akin to the pre-World War II Comintern (Communist International), a Moscow-sanctioned international pressure group that advocated in favor of Soviet-style communism around the world. French media reported on Monday that Quennedey traveled extensively to the Korean Peninsula in the past decade and has written a French-language book on North Korea. News reports said that the French President Emmanuel Macron had been made aware of Quennedey’s arrest. The senior civil servant faces up to 30 years in prison if found guilty of espionage.\n\n► Author: Joseph Fitsanakis | Date: 27 November 2018 | Permalink\n\n"
+    # context = "If you had a bar of chocolate and then your friend gave you another bar of the same chocolate, how many bars of chocolate do you have now?\n(A).0(B).1(C).2(D).3"
+    context = "As at most other universities, Notre Dame's students run a number of news media outlets. The nine student-run outlets include three newspapers, both a radio and television station, and several magazines and journals. Begun as a one-page journal in September 1876, the Scholastic magazine is issued twice monthly and claims to be the oldest continuous collegiate publication in the United States. The other magazine, The Juggler, is released twice a year and focuses on student literature and artwork. The Dome yearbook is published annually. The newspapers have varying publication interests, with The Observer published daily and mainly reporting university and other news, and staffed by students from both Notre Dame and Saint Mary's College. Unlike Scholastic and The Dome, The Observer is an independent publication and does not have a faculty advisor or any editorial oversight from the University. In 1987, when some students believed that The Observer began to show a conservative bias, a liberal newspaper, Common Sense was published. Likewise, in 2003, when other students believed that the paper showed a liberal bias, the conservative paper Irish Rover went into production. Neither paper is published as often as The Observer; however, all three are distributed to all students. Finally, in Spring 2008 an undergraduate journal for political science research, Beyond Politics, made its debut."
+    question = "What is the daily student paper at Notre Dame called?"
 
-input_ids = tokenizer(reference, add_special_tokens=False)["input_ids"][0]
-cl_gen_ids = tokenizer(candidate, add_special_tokens=False)["input_ids"][0]
-bleu4 = sentence_bleu([input_ids], cl_gen_ids, weights=(0.25, 0.25, 0.25, 0.25))
+    context_ids = tokenizer(context, add_special_tokens=False)["input_ids"]
+    question_ids = tokenizer(question, add_special_tokens=False)["input_ids"]
+    input_ids = tokenizer("### Context:\n")["input_ids"] + context_ids \
 
+    padding_token = tokenizer('\n', add_special_tokens=False)["input_ids"]
+    input_ids = pad_sequence(input_ids,510,padding_token)
+    lm_targets = tokenizer("\n### Question:\n", add_special_tokens=False)["input_ids"] + question_ids \
+                 + tokenizer("\n### Answer:\n", add_special_tokens=False)["input_ids"]
+    inputs = {"input_ids":torch.tensor(input_ids).unsqueeze(0).to(model.device),
+              "lm_targets":torch.tensor(lm_targets).unsqueeze(0).to(model.device)}
+    answer = model.lm_inference(inputs,segment_size=510)
+    answer = tokenizer.decode(answer, skip_special_tokens=True)
+    cl_generate_text = model.cl_inference(inputs, 510)
+    cl_generate_text = tokenizer.decode(cl_generate_text, skip_special_tokens=True)
+    print(cl_generate_text)
 
-print(f"BLEU-4 Score: {bleu4}")
-
-
-
-
-
-
-
-
+    print(tokenizer.decode(input_ids, skip_special_tokens=True))
+    print(tokenizer.decode(lm_targets, skip_special_tokens=True))
+    print("-------------------------------------")
+    print("answer：",answer)
+    # print("cl_generate_text：",cl_generate_text)
+    # # text = "Gone are the days when America’s standing in the world was contrasted primarily with that of the Soviet Union. Instead, the United States and China now compete to be the more favored world power.\n\nThe U.S. and China engender roughly the same level of goodwill. China is particularly well-liked in Latin America and the Middle East, while the U.S. fares better in Europe and the Asia-Pacific region.\n\nHowever, America’s weakening image in many nations has taken a toll on the country’s once-solid lead over China. And China’s own favorability has strengthened in recent years in Canada, Australia, Lebanon and Turkey.\n\nSince the most recent year Pew Research Center polled in 36 nations – 2014, 2015 or 2016, depending on the country – the number of nations in which the U.S. holds a competitive advantage in favorability over China has halved, from 25 to 12. (Differences of less than 6 percentage points are considered ties.) Whereas the U.S. once had a 12-point lead over China in terms of a global median, that lead has shrunk in 2017 to 2 points.\n\nIn six nations – Spain, Mexico, Turkey, Australia, Peru and Senegal – the dynamic between the two superpowers has flipped, with China overtaking the U.S. in favorability.\n\nAnd the United States’ once-significant lead over China in popularity has fallen to a virtual tie in another seven countries: Kenya, Germany, France, Brazil, Sweden, the UK and Canada.\n\nMeanwhile, in 12 nations, people view America more favorably than they do China: Vietnam, Israel, the Philippines, South Korea, Poland, Hungary, Italy, Ghana, Japan, South Africa, Colombia and India.\n\nA quarter-century after the collapse of the Soviet Union, Russia is viewed far less favorably than either the U.S. or China in most of the world, though America’s recent steep decline in image has improved Russia’s standing compared with that of the U.S.\n\nAmerica’s edge over Russia has contracted by more than 20 percentage points in 15 out of the 33 nations for which Pew Research Center has trend data on favorability toward Russia. These include Spain, France, Chile, Brazil, Italy, Australia and Tanzania.\n\nThe narrowing of the U.S.-Russia favorability gap is most striking in Mexico, where the 42-point advantage held by the U.S. over Russia in 2015 is all but gone. Mexicans now view the U.S. and Russia roughly the same.\n\n"
+    # # text = "All were either rejected outright by Metro — based on its advertising guidelines that prohibit ads that are “issues-oriented” or “intended to influence members of the public regarding an issue on which there are varying opinions” — or were retroactively pulled from stations, trains and buses after riders complained.\n\nAD\n\nAD\n\n“This case highlights the consequences of the government’s attempt to suppress all controversial speech on public transit property,” Arthur Spitzer, legal director of the ACLU-DC and lead counsel in the case, said in a statement. “The First Amendment protects the speech of everyone from discriminatory government censorship, whether you agree with the message or not.”\n\nThe ACLU said that Metro is enforcing its advertising guidelines capriciously, and that the prohibitions outlined in the guidelines are far too broad and wide-reaching.\n\nThe organization noted that any advertisement could potentially violate Metro’s policy, and that the transit agency has allowed other advertisements for organizations or issues that could be polarizing.\n\nAD\n\n“By rejecting these ads and accepting ads from gambling casinos, military contractors, and internet sex apps, the [Washington Metropolitan Area Transit Authority] showed just how subjective its ban is,” the statement said.\n\nAD\n\n“WMATA’s policy is an attempt to silence anyone who tries to make you think. Any one of these advertisements, had it passed the WMATA’s censor, would have been the subject of someone’s outraged call to the WMATA,” the ACLU added. “The First Amendment doesn’t, and shouldn’t, tolerate that kind of impoverishment of our public conversation. Not even in the subway.”\n\nCarafem, the company whose advertisements for abortion pills were rejected by Metro, said it is a health-care provider, not an advocacy group, meaning its ads do not violate Metro’s policy.\n\nAD\n\n“The abortion pill is, of course, both FDA-approved and accepted by the American Medical Association. We are a healthcare provider, not an advocacy group. Metro’s ban of our ads claimed that they were ‘issue-oriented’ and ‘provided a medical statement which can only be accepted from a government health association,’ ” Melissa Grant, Carafem’s chief operations officer, said in a statement. “This is obviously inaccurate — we’re publicizing our services like any other health care provider."
+    # text = " a With Red Hat, IBM to become the leading hybrid cloud provider Watch Now\n\nAfter IBM acquired Red Hat, I suggested IBM paid $34 billion for the Linux power so it could become a hybrid-cloud power. With the news that Red Hat will acquire NooBaa, a hybrid-cloud, data-storage company, it's become clearer than ever that the IBM-Red Hat deal is all about the hybrid cloud.\n\nNooBaa is a software-defined storage company. Its primary program of the same name is open-source software, which puts a virtual layer over private and public clouds storage resources.\n\nAlso: IBM: Chip making is hitting its limits, but our techniques could solve that\n\nIt's made up of three components: First, there's an access node, which handles the data chunking, deduplication, compression and encryption between storage resources; next, there's a storage daemon, which presents server storage as storage nodes; and finally, there's a virtual machine (VM) based core for data placement, self-healing, and monitoring. The Access nodes and storage daemons make up a data plane, while the core provides its control plane.\n\nAlso: How IBM Watson is revolutionizing 10 industries TechRepublic\n\nSo, what does all mean for customers? It's multi-cloud storage management, which enables allows you to manage, deploy, and migrate data storage across private and major public clouds. This includes Alibaba, AWS, Azure, and Google Cloud.\n\nIt's easy to see why Red Hat values this. It gives their customers a way to manage storage without sweating the details across multiple platforms.\n\nAs Ranga Rangachari, Red Hat's vice president of Storage and Hyperconverged Infrastructure, said in a statement:\n\n\"Data portability is a key imperative for organizations building and deploying cloud-native applications across private and multiple clouds. NooBaa's technologies will augment our portfolio and strengthen our ability to meet the needs of developers in today's hybrid and multicloud world. We are thrilled to welcome a technical team of nine to the Red Hat family as we work together to further solidify Red Hat as a leading provider of open hybrid-cloud technologies.\"\n\nRelated stories:\n\ "
+    # cl_gen_ids = tokenizer(text, add_special_tokens=False)["input_ids"]
+    # print(text)
 
 
 

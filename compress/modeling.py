@@ -432,7 +432,7 @@ class CompressLLM(torch.nn.Module):
     def cl_inference(self, inputs, segment_size):
         # ->LlamaForCausalLM->LlamaModel->embed_tokens
         if self.task_config["use_multi_lora"]:
-            mask = {"lm_mask": torch.ones_like(inputs['lm_targets'])}
+            mask = {"lm_mask": torch.ones_like(inputs['input_ids'])}
             inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
         else:
             inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])

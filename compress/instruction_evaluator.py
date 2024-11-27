@@ -17,23 +17,24 @@ from nltk.translate.bleu_score import sentence_bleu
 from torch.nn import DataParallel
 import torch.multiprocessing as mp
 
-from instruction_prepare_data import get_examples
+from rajpurkar_squad import get_examples
 from instruction_modeling import get_model, save_adapter, load_adapter, load_adapter_to_merge_weight
 from instruction_dataloader import get_dataset
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--work_dir', type=str, default='compressLLM_test', required=False, help='Directory including the configuration file')
+    parser.add_argument('--work_dir', type=str, default='compressLLM_test_mmlu_all_18', required=False, help='Directory including the configuration file')
     parser.add_argument('--batch_size', type=int, default=1, required=False, help='total batch size')
     return parser.parse_args()
 
 class Evaluator:
 
-    def __init__(self, config, work_dir, batch_size):
+    def __init__(self, config, work_dir, batch_size, tokenizer):
         self.config = config
         self.work_dir = work_dir
         self.batch_size = batch_size
         self.device_count = torch.cuda.device_count()
+        self.tokenizer = tokenizer
 
     def draw_loss(self):
         with open(os.path.join(self.work_dir,"instruction_info.json")) as f:
@@ -153,7 +154,7 @@ class Evaluator:
         self.evaluate(rank)
 
 
-def evaluate(rank, args, world_size):
+def evaluate(rank, args, world_size, tokenizer):
 
     with open(args.work_dir+"/config.json") as f:
         config=json.load(f)
@@ -168,7 +169,7 @@ def evaluate(rank, args, world_size):
         ]
     )
     
-    evaluator = Evaluator(config, args.work_dir, args.batch_size)
+    evaluator = Evaluator(config, args.work_dir, args.batch_size, tokenizer)
     evaluator.run(rank)
 
 def cal_avg_loss(args, config):
@@ -217,20 +218,19 @@ def cal_cl_token_acc(cl_generate_text, examples_list, tokenizer):
 if __name__ == "__main__":
     args = parse_args()
     world_size = torch.cuda.device_count()
+    with open(args.work_dir + "/config.json") as f:
+        config = json.load(f)
+
+    tokenizer = AutoTokenizer.from_pretrained(config["data_config"]["model_id"],
+                                              token=config["data_config"]["hf_token"])
+
 
     if not os.path.exists(args.work_dir+f'/instruction_eval_info_list_0.json'):
         mp.spawn(evaluate,
-                args=(args,world_size),
+                args=(args,world_size, tokenizer),
                 nprocs=world_size,
                 join=True)
 
-
-
-    with open(args.work_dir+"/config.json") as f:
-        config=json.load(f)
-    
-    
-    tokenizer = AutoTokenizer.from_pretrained(config["data_config"]["model_id"], token=config["data_config"]["hf_token"])
 
     info_list = []
     for i in range(world_size):
@@ -241,10 +241,10 @@ if __name__ == "__main__":
     generate_text = [entry["generate_text"] for entry in info_list]
     cl_generate_text = [entry["cl_generate_text"] for entry in info_list]
 
-    print("calculate BLEU4...")    
-
-    if os.path.exists(f'test_instruction_dataset.json'):
-        with open(f'test_instruction_dataset.json', 'r', encoding='utf-8') as f:
+    print("calculate BLEU4...")
+    instruction_dataset_name = config["data_config"]["instruction_dataset_repo"].split('/')[-1]
+    if os.path.exists(f'{instruction_dataset_name}_test_instruction_dataset.json'):
+        with open(f'{instruction_dataset_name}_test_instruction_dataset.json', 'r', encoding='utf-8') as f:
             examples_list =  json.load(f)
 
     cl_generate_acc = cal_cl_token_acc(cl_generate_text, examples_list, tokenizer)
@@ -253,8 +253,10 @@ if __name__ == "__main__":
     bleu4_list = []
     for gen_text, example in zip(generate_text, examples_list):
 
+        # ans_text = example["answers_spans"]['spans'][0]
+        # ans_text = example["answers"]['text'][0]
         ans_text = example["answer"]
-    
+
         gen_text = tokenizer.decode(gen_text, skip_special_tokens=True)
 
         gen_ids = tokenizer(gen_text, add_special_tokens=False)["input_ids"]
