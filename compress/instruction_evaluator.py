@@ -17,13 +17,13 @@ from nltk.translate.bleu_score import sentence_bleu
 from torch.nn import DataParallel
 import torch.multiprocessing as mp
 
-from rajpurkar_squad import get_examples
+from instruction_prepare_data import get_examples
 from instruction_modeling import get_model, save_adapter, load_adapter, load_adapter_to_merge_weight
 from instruction_dataloader import get_dataset
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--work_dir', type=str, default='compressLLM_test_mmlu_all_18', required=False, help='Directory including the configuration file')
+    parser.add_argument('--work_dir', type=str, default='compressLLM_test_rajpurkar_squad_18', required=False, help='Directory including the configuration file')
     parser.add_argument('--batch_size', type=int, default=1, required=False, help='total batch size')
     return parser.parse_args()
 
@@ -243,18 +243,15 @@ if __name__ == "__main__":
 
     print("calculate BLEU4...")
     instruction_dataset_name = config["data_config"]["instruction_dataset_repo"].split('/')[-1]
-    if os.path.exists(f'{instruction_dataset_name}_test_instruction_dataset.json'):
-        with open(f'{instruction_dataset_name}_test_instruction_dataset.json', 'r', encoding='utf-8') as f:
+    if os.path.exists(f'test_instruction_dataset.json'):
+        with open(f'test_instruction_dataset.json', 'r', encoding='utf-8') as f:
             examples_list =  json.load(f)
-
     cl_generate_acc = cal_cl_token_acc(cl_generate_text, examples_list, tokenizer)
 
     instruction_inference_results = []
     bleu4_list = []
     for gen_text, example in zip(generate_text, examples_list):
 
-        # ans_text = example["answers_spans"]['spans'][0]
-        # ans_text = example["answers"]['text'][0]
         ans_text = example["answer"]
 
         gen_text = tokenizer.decode(gen_text, skip_special_tokens=True)

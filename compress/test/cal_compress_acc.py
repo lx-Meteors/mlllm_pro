@@ -6,7 +6,7 @@ import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer
 from nltk.translate.bleu_score import sentence_bleu
-work_dir = "../compressLLM_baseline_only_lm"
+work_dir = "../compressLLM_test_rajpurkar_squad_18"
 with open(work_dir + f'/config.json') as f:
     config =json.load(f)
 

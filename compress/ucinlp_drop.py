@@ -27,6 +27,7 @@ def get_examples_list(instruction_dataset_repo, split):
 
     examples_list = []
     for example in tqdm(dataset, desc="Processing examples"):
+        example['answer'] = example['answers_spans']['spans'][0]
         examples_list.append(example)
 
     with open(f'{instruction_dataset_name}_{split}_instruction_dataset.json', 'w', encoding='utf-8') as f:
@@ -35,25 +36,54 @@ def get_examples_list(instruction_dataset_repo, split):
     return examples_list
 
 
-def get_ids(examples_list, tokenizer, min_len, split):
+def get_ids(instruction_dataset_name, examples_list, tokenizer, min_len, split):
     examples = []
+    re_examples_list = []
     minn = 9999
     maxn = 0
     for example in tqdm(examples_list, desc="Processing examples"):
         context_ids = tokenizer(example["passage"], add_special_tokens=False)["input_ids"]
         question_ids = tokenizer(example["question"], add_special_tokens=False)["input_ids"]
-        padding_token = tokenizer('\n', add_special_tokens=False)["input_ids"]
+        answer_ids = tokenizer(example["answer"], add_special_tokens=False)["input_ids"]
 
-        input_ids = tokenizer("### Context:\n")["input_ids"] + context_ids
-        # 扩充到510
-        if len(input_ids) < 510:
-            input_ids = pad_sequence(input_ids,min_len,padding_token)
+        all_prompt_ids = tokenizer("### Context:\n")["input_ids"] + context_ids
+
+        all_response_ids = tokenizer("\n### Question:\n")["input_ids"] + question_ids \
+                           + tokenizer("\n### Answer:\n", add_special_tokens=False)["input_ids"] + answer_ids \
+                           + tokenizer("</s>", add_special_tokens=False)["input_ids"]
+        padding_token = tokenizer('\n', add_special_tokens=False)["input_ids"]
+        if len(all_prompt_ids) < 510:
+            all_prompt_ids = pad_sequence(all_prompt_ids, min_len, padding_token)
         else:
             continue
-        inputs = torch.LongTensor(input_ids)
-        lm_target = torch.LongTensor(tokenizer("\n### Question:\n", add_special_tokens=False)["input_ids"] + question_ids
-                                     + tokenizer("\n### Answer:\n")["input_ids"])
-        examples.append({"input_ids": inputs, "lm_targets": lm_target})
+        instruction_target = [-100 for x in all_prompt_ids] + [x for x in all_response_ids]
+        instruction_target = instruction_target[1:]
+        if split == 'train':
+            all_ids = all_prompt_ids + all_response_ids
+        else:
+            all_ids = all_prompt_ids
+
+        minn = min(minn, len(all_ids))
+        maxn = max(maxn, len(all_ids))
+
+        inputs = torch.LongTensor(all_ids[:min_len])
+        # 如果是训练的时候？
+        if len(all_ids) >= min_len + 2:  # will drop the end token and leave one token
+            lm_target = torch.LongTensor(all_ids[min_len:])
+        else:
+            lm_target = torch.LongTensor(tokenizer("\n### Question:\n")["input_ids"] + question_ids +
+                                         tokenizer("\n### Answer:\n", add_special_tokens=False)["input_ids"])
+
+        instruction_target = torch.LongTensor(instruction_target)
+
+        if split == "test":
+            examples.append({"input_ids": inputs, "lm_targets": lm_target})
+        else:
+            examples.append({"input_ids": inputs, "lm_targets": lm_target,
+                             "instruction_target": instruction_target})
+        re_examples_list.append(example)
+    with open(f'{instruction_dataset_name}_{split}_instruction_dataset.json', 'w', encoding='utf-8') as f:
+        json.dump(re_examples_list, f, ensure_ascii=False)
     return examples
 
 def pad_sequence(sequence, max_length, pad_value=0):
@@ -77,7 +107,7 @@ def get_examples(model_id, instruction_dataset_repo="sggetao/PwC", hf_token=None
     print(f"in:train_data_name:{train_data_name}")
     if os.path.exists(eval_data_name):
         print("loading data...")
-        return torch.load(eval_data_name)
+        return torch.load(train_data_name), torch.load(eval_data_name)
     print(f"preparing data :train_data_name:{train_data_name}")
 
     model = AutoModelForCausalLM.from_pretrained(
@@ -89,16 +119,16 @@ def get_examples(model_id, instruction_dataset_repo="sggetao/PwC", hf_token=None
     tokenizer = AutoTokenizer.from_pretrained(model_id, token=hf_token)
 
 
-    # train_examples_list = get_examples_list(instruction_dataset_repo, split="train")
+    train_examples_list = get_examples_list(instruction_dataset_repo, split="train")
     test_examples_list = get_examples_list(instruction_dataset_repo, split="test")
 
-    # train_data = get_ids(train_examples_list, tokenizer, min_len, split="train")
-    test_data = get_ids(test_examples_list, tokenizer, min_len, split="test")
+    train_data = get_ids(instruction_dataset_name, train_examples_list, tokenizer, min_len, split="train")
+    test_data = get_ids(instruction_dataset_name, test_examples_list, tokenizer, min_len, split="test")
 
-    # torch.save(train_data, train_data_name)
+    torch.save(train_data, train_data_name)
     torch.save(test_data, eval_data_name)
 
-    return test_data
+    return train_data, test_data
 
 
 if __name__ == "__main__":
@@ -110,7 +140,7 @@ if __name__ == "__main__":
     config["data_config"]["model_id"] = training_config["model_id"]
 
     print(config["data_config"])
-    eval_examples = get_examples(**config["data_config"])
+    train_examples, eval_examples = get_examples(**config["data_config"])
     print(len(eval_examples))
     print(eval_examples[50])
 
