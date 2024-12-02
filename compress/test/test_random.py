@@ -326,11 +326,11 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 #     # print(train_examples[50])
 #
 # """
-# python prepare_data.py --work_dir CompressLLM
+# python pre_prepare_data.py --work_dir CompressLLM
 #
 # unset HF_HUB_OFFLINE
-# HF_ENDPOINT=https://hf-mirror.com HF_DATASETS_OFFLINE=0 HF_HUB_OFFLINE=0 python prepare_data.py --work_dir compressLLM_len-510_ratio-15
-# HF_ENDPOINT=https://hf-mirror.com python prepare_data.py --work_dir compressLLM_len-510_ratio-15
+# HF_ENDPOINT=https://hf-mirror.com HF_DATASETS_OFFLINE=0 HF_HUB_OFFLINE=0 python pre_prepare_data.py --work_dir compressLLM_len-510_ratio-15
+# HF_ENDPOINT=https://hf-mirror.com python pre_prepare_data.py --work_dir compressLLM_len-510_ratio-15
 # """
 
 # work_dir = "../compressLLM_random_instruction_(pre-train-multi-lora)_multi-lora_lm&cl"
