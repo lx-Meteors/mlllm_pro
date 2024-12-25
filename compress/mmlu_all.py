@@ -59,7 +59,7 @@ def get_ids(instruction_dataset_name, examples_list, tokenizer, min_len, split):
         choices_ids = tokenizer(example["choices"], add_special_tokens=False)["input_ids"]
         answer_ids = tokenizer(example["answer"], add_special_tokens=False)["input_ids"]
 
-        all_prompt_ids = tokenizer("### Question:\n")["input_ids"] + question_ids +tokenizer("\n")["input_ids"]+ choices_ids
+        all_prompt_ids = tokenizer("### Question:\n")["input_ids"] + question_ids +tokenizer("\n")["input_ids"]+ choices_ids + tokenizer("\n### Answer:\n", add_special_tokens=False)["input_ids"]
 
         all_response_ids = tokenizer("\n### Answer:\n", add_special_tokens=False)["input_ids"]+ answer_ids\
                            + tokenizer("</s>", add_special_tokens=False)["input_ids"]
