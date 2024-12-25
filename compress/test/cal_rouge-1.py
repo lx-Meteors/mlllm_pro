@@ -9,7 +9,7 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 from nltk.translate.bleu_score import sentence_bleu
 
-work_dir = "../compressLLM_random_instruction_(pre-train-multi-lora)_multi-lora_lm"
+work_dir = "../compressLLM_random_instruction_compress_token_to_context"
 with open(work_dir + f'/config.json') as f:
     config =json.load(f)
 config["data_config"]["model_id"] = "../../../models/TinyLlama/TinyLlama_v1.1"

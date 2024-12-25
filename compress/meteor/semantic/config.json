@@ -1,6 +1,6 @@
 {
     "training_config": {
-        "model_id": "../../models/meta-llama/Llama-2-7b-chat-hf",
+        "model_id": "../../../models/TinyLlama/TinyLlama_v1.1",
         "segment_len": 510,
         "total_batch_size": 32,
         "batch_size_per_device": 1,
@@ -25,12 +25,12 @@
         "use_lm_loss": true
     },
     "data_config": {
-        "dataset_repo": "../../../../dataset/DKYoon/SlimPajama-6B",
+        "dataset_repo": "../../../dataset/DKYoon/SlimPajama-6B",
         "hf_token": "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",
         "token_num": 1000000000,
         "min_len": 510,
-        "model_id": "../../../../models/TinyLlama/TinyLlama_v1.1",
-        "instruction_dataset_repo": "../../../../dataset/sggetao/PwC"
+        "model_id": "../../../models/TinyLlama/TinyLlama_v1.1",
+        "instruction_dataset_repo": "../../../dataset/sggetao/PwC"
     },
     "Total_parameters": 1445459968,
     "Trainable_parameters": 345503744,

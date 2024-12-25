@@ -6,7 +6,7 @@ import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer
 from nltk.translate.bleu_score import sentence_bleu
-work_dir = "../compressLLM_test_rajpurkar_squad_18"
+work_dir = "../compressLLM_random_instruction_(pre-train-multi-lora)_multi-lora_lm"
 with open(work_dir + f'/config.json') as f:
     config =json.load(f)
 
@@ -16,29 +16,33 @@ tokenizer = AutoTokenizer.from_pretrained(config["data_config"]["model_id"], tok
 
 print("calculate BLEU4...")
 
-if os.path.exists(work_dir + f'/instruction_cl_generate_text.json'):
-    with open(work_dir + f'/instruction_cl_generate_text.json', 'r', encoding='utf-8') as f:
+if os.path.exists(work_dir + f'/instruction_inference_results.json'):
+    with open(work_dir + f'/instruction_inference_results.json', 'r', encoding='utf-8') as f:
         examples_list =  json.load(f)
 
 
 
-input_text = [entry["input_text"] for entry in examples_list]
-cl_generate_text = [entry["cl_generate_text"] for entry in examples_list]
+input_text = [entry["answer"] for entry in examples_list]
+cl_generate_text = [entry["generate"] for entry in examples_list]
 
 
 def cal_cl_token_acc(input_text, cl_generate_text, tokenizer):
+    index = 0
     correct_tokens = 0
     total_tokens = 0
     acc = []
     bleus = []
     for input, decompress in tqdm(zip(input_text, cl_generate_text), desc="Processing examples", total=len(cl_generate_text)):
+        index += 1
+        if index > 8057:
+            break
         cl_gen_text = decompress.split("Context:\n ", 1)[-1]
         cl_gen_ids = tokenizer(cl_gen_text, add_special_tokens=False)["input_ids"]
         input_ids = tokenizer(input, add_special_tokens=False)["input_ids"]
 
         total_tokens += len(cl_gen_ids)
-        correct_tokens += sum(1 for o,d in zip(cl_gen_ids, input_ids) if o == d)
-        acc.append(correct_tokens / total_tokens)
+        # correct_tokens += sum(1 for o,d in zip(cl_gen_ids, input_ids) if o == d)
+        # acc.append(correct_tokens / total_tokens)
         correct_tokens = 0
         total_tokens = 0
         bleu4 = sentence_bleu([input_ids], cl_gen_ids, weights=(0.25, 0.25, 0.25, 0.25))

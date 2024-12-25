@@ -2,10 +2,10 @@ from transformers import Trainer
 import os
 import torch
 import random
-
+import json
 from transformers.trainer_utils import get_last_checkpoint
 import math
-
+import wandb
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def train_model(model, train_dataset, eval_dataset, training_args, data_collator=None):
@@ -50,11 +50,11 @@ def train_model(model, train_dataset, eval_dataset, training_args, data_collator
     print(f"Loaded from the checkpoint: {checkpoint}")
 
     train_result = trainer.train(resume_from_checkpoint=checkpoint)
-    # trainer.save_model()
-    # trainer.log_metrics("train", train_result.metrics)
-    # metrics = trainer.evaluate()
-    # trainer.log_metrics("eval", metrics)
-    # trainer.save_metrics("eval", metrics)
+    trainer.save_model()
+    trainer.log_metrics("train", train_result.metrics)
+    metrics = trainer.evaluate()
+    trainer.log_metrics("eval", metrics)
+    trainer.save_metrics("eval", metrics)
 
 
 def text_extraction(input_ids, length, lm_ratio=0.0):
@@ -119,7 +119,6 @@ def pretrain_tokenize_function(examples, model, mem, lm_ratio=0.0):
             labels = [-100] * len(prompt_ids) + [-100] * model.training_args.leave_tokens_for_lm + answer_ids[model.training_args.leave_tokens_for_lm:] # no loss for leave_tokens_for_lm
         text_output['labels'].append(labels)
         assert len(text_output['prompt_answer_ids'][-1]) == len(labels)
-        
     return text_output
 
 

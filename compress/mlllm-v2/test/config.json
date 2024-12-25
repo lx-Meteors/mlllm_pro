@@ -1,10 +1,10 @@
 {
     "training_config": {
-        "model_id": "../../models/meta-llama/Llama-2-7b-chat-hf",
+        "model_id": "../../../models/TinyLlama/TinyLlama_v1.1",
         "segment_len": 510,
-        "total_batch_size": 32,
+        "total_batch_size": 16,
         "batch_size_per_device": 1,
-        "device_count": 8,
+        "device_count": 4,
         "gradient_accumulation_steps": 4,
         "learning_rate": 0.0001,
         "max_grad_norm": 1.0,
@@ -18,19 +18,19 @@
         "head_num": 5,
         "segment_num": 2,
         "task_type": "Compress",
-        "use_ae_loss": false,
-        "use_compress_loss": false,
+        "wo_ae": true,
+        "instruction_fine-tuning_add_compress_loss": true,
         "use_multi_lora": false,
         "use_merge_lora": false,
         "use_lm_loss": true
     },
     "data_config": {
-        "dataset_repo": "../../../../dataset/DKYoon/SlimPajama-6B",
+        "dataset_repo": "../../../dataset/DKYoon/SlimPajama-6B",
         "hf_token": "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",
         "token_num": 1000000000,
         "min_len": 510,
-        "model_id": "../../../../models/TinyLlama/TinyLlama_v1.1",
-        "instruction_dataset_repo": "../../../../dataset/sggetao/PwC"
+        "model_id": "../../../models/TinyLlama/TinyLlama_v1.1",
+        "instruction_dataset_repo": "../../../dataset/sggetao/PwC"
     },
     "Total_parameters": 1445459968,
     "Trainable_parameters": 345503744,
