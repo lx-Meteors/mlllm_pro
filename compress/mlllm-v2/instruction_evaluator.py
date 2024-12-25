@@ -128,15 +128,7 @@ class Evaluator:
                 # output = model(inputs=inputs)
                 generate_text = model.lm_inference(inputs,segment_size=task_config["segment_size"])
                 cl_generate_text = model.cl_inference(inputs, segment_size=task_config["segment_size"])
-                # print(inputs['ae_targets'].size())
-                # print("teacher forcing generate:", torch.argmax(output["logits"], dim=-1).tolist()) # B,S,V -> B,S
-                # print("Auto-regressive generate:", generate_text)
-                # print("target:", inputs['ae_targets'].tolist())
-                # generate_text = tokenizer.decode(generate_text, skip_special_tokens=False)
-                # bleu4 = sentence_bleu([inputs['ae_targets'].tolist()], generate_text, weights=(0.25, 0.25, 0.25, 0.25))
-                # print(f"BLEU-4:",bleu4*100)
-                # print('gen:', generate_text)
-                
+                # gen = self.tokenizer.decode(cl_generate_text, skip_special_tokens=False)
                 info_list.append({"generate_text": generate_text,
                                   "cl_generate_text": cl_generate_text})
 
@@ -243,8 +235,8 @@ if __name__ == "__main__":
 
     print("calculate BLEU4...")
     instruction_dataset_name = config["data_config"]["instruction_dataset_repo"].split('/')[-1]
-    if os.path.exists(f'../test_instruction_dataset.json'):
-        with open(f'../test_instruction_dataset.json', 'r', encoding='utf-8') as f:
+    if os.path.exists(f'{instruction_dataset_name}_test_instruction_dataset.json'):
+        with open(f'{instruction_dataset_name}_test_instruction_dataset.json', 'r', encoding='utf-8') as f:
             examples_list =  json.load(f)
     cl_generate_acc = cal_cl_token_acc(cl_generate_text, examples_list, tokenizer)
 
