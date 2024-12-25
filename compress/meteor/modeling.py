@@ -1,3 +1,5 @@
+import sys
+
 from transformers import AutoModelForCausalLM, AutoTokenizer,BitsAndBytesConfig
 import torch
 from torch import nn
@@ -8,6 +10,8 @@ import torch.nn.functional as F
 import math
 import transformers
 
+sys.path.append('/mnt/zhaorunsong/lx/compress/meteor/')
+# noinspection PyUnresolvedReferences
 from modify_code import modify_llama
 
 
@@ -132,9 +136,12 @@ class LinearLoraLayer(nn.Module):
         nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
         nn.init.zeros_(self.lora_B)
 
-    def forward(self, x):
-        result = F.linear(x, self.weight)
-        result += self.scale*(x@self.lora_A@self.lora_B)
+    def forward(self, x, enabled_lora):
+        if enabled_lora:
+            result = F.linear(x, self.weight)
+            result += self.scale*(x@self.lora_A@self.lora_B)
+        else:
+            result = F.linear(x, self.weight)
         return result
     
 
@@ -151,10 +158,13 @@ class EmbeddingLoraLayer(nn.Module):
         nn.init.normal_(self.lora_B)
         
         
-    def forward(self, x):
-        result = F.embedding(x, self.weight, self.padding_idx)
-        after_A = F.embedding(x, self.lora_A, self.padding_idx)
-        result += self.scale*(after_A@self.lora_B)
+    def forward(self, x, enabled_lora):
+        if enabled_lora:
+            result = F.embedding(x, self.weight, self.padding_idx)
+            after_A = F.embedding(x, self.lora_A, self.padding_idx)
+            result += self.scale*(after_A@self.lora_B)
+        else:
+            result = F.embedding(x, self.weight, self.padding_idx)
         return result
 
 class CompressLLM(torch.nn.Module):
@@ -187,6 +197,7 @@ class CompressLLM(torch.nn.Module):
         std = torch.std(self.model.model.embed_tokens.weight).item()
         nn.init.normal_(self.mem_tokens, mean=mean, std=std)
         nn.init.normal_(self.special_tokens, mean=mean, std=std)
+        self.loss_mse = nn.MSELoss()
 
     def forward(self,inputs):
         
@@ -196,7 +207,7 @@ class CompressLLM(torch.nn.Module):
             mask = {"lm_mask": torch.ones_like(inputs['input_ids'])}
             inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], mask)
         else:
-            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"])
+            inputs_embeds = self.model.model.embed_tokens(inputs["input_ids"], enabled_lora=True)
         bsz, seq_len, emb_size = inputs_embeds.size()
         mem_size = self.mem_tokens.size(0)
         expand_mem = self.mem_tokens.unsqueeze(0).expand(bsz, mem_size, emb_size)
@@ -239,6 +250,7 @@ class CompressLLM(torch.nn.Module):
                     position_ids=encode_position_ids,
                     inputs_embeds=encode_inputs_embeds,
                     output_hidden_states=True,
+                    enabled_lora=True
                 )
 
         hidden_states = outputs.hidden_states[-1]
@@ -262,7 +274,7 @@ class CompressLLM(torch.nn.Module):
                 mask = {"lm_mask": torch.ones_like(inputs['lm_targets'][:, :-1])}
                 lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:, :-1], mask)
             else:
-                lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:, :-1])
+                lm_target_emb = self.model.model.embed_tokens(inputs['lm_targets'][:, :-1], enabled_lora=False)
 
             # [1,E] -> [1,1,E] -> [B,1,E]
             expand_lm_token = self.special_tokens[1:2].unsqueeze(0).expand(bsz, 1, emb_size)
@@ -294,6 +306,7 @@ class CompressLLM(torch.nn.Module):
                     outputs = self.model(
                         position_ids=lm_position_ids,
                         inputs_embeds=lm_emb,
+                        enabled_lora=False
                     )
 
             # [B,mem_size+S,V] -> [B,S,V]
@@ -306,7 +319,23 @@ class CompressLLM(torch.nn.Module):
             tot_loss += lm_loss
             tot_task += 1            
 
-
+        if True:
+            expand_lm_token = self.special_tokens[0:1].unsqueeze(0).expand(bsz, 1, emb_size)
+            input_hidden = torch.cat([mem_hidden[:,:-1,:],expand_lm_token],dim=1)
+            input_position_ids = mem_position_ids
+            target_hidden = mem_hidden
+            outputs = self.model(
+                position_ids=input_position_ids,
+                inputs_embeds=input_hidden,
+                output_hidden_states=True,
+                enabled_lora=False
+            )
+            new_mem_hidden = outputs.hidden_states[-1]
+            # [B,mem_size,emb_size]
+            mseLoss = self.loss_mse(target_hidden, new_mem_hidden)
+            loss_info["ae_loss"] = mseLoss.item()
+            tot_loss += mseLoss
+            tot_task += 1
 
 
         # compress loss
@@ -321,10 +350,12 @@ class CompressLLM(torch.nn.Module):
             compress_loss = self.loss_fct(logits, inputs['compress_targets'])
             loss_info["compress_loss"] = compress_loss.item()
             tot_loss += compress_loss
-            tot_task += 1 
+            tot_task += 1
+        else:
+            loss_info["compress_loss"] = -1
 
         # AE loss
-        if self.task_config["use_ae_loss"]:
+        if  self.task_config["use_ae_loss"]:
             # print("ae_targets will be used")
             # [1,E] -> [1,1,E] -> [B,1,E]
             expand_ae_token = self.special_tokens[0:1].unsqueeze(0).expand(bsz, 1, emb_size)
@@ -350,9 +381,9 @@ class CompressLLM(torch.nn.Module):
             loss_info["ae_loss"] = ae_loss.item()
             tot_loss += ae_loss
             tot_task += 1      
-        else:
-            inputs['ae_targets'] = inputs['ae_targets'].contiguous().view(-1).to(logits.device)
-            loss_info["ae_loss"] = -1
+        # else:
+        #     inputs['ae_targets'] = inputs['ae_targets'].contiguous().view(-1).to(logits.device)
+        #     loss_info["ae_loss"] = -1
 
         loss = tot_loss/tot_task
         # return AE_logtis for validation.
@@ -546,6 +577,7 @@ def get_model_for_compress(model_id, task_config, rank):
 
     def add_compress_lora(model, task_config):
         for name, module in model.named_children():
+            
             if name == "compress_head":
                 continue
             if isinstance(module, nn.Linear):
@@ -589,6 +621,7 @@ def get_model_for_compress(model_id, task_config, rank):
         )
         add_multi_lora(model, task_config)
     else:
+        modify_llama()
         model = CompressLLM(
             model_id,
             mem_size=task_config["mem_size"],

@@ -8,7 +8,6 @@ import torch.nn.functional as F
 import math
 import transformers
 
-from modify_code import modify_llama
 
 
 # from peft import prepare_model_for_kbit_training
@@ -245,7 +244,6 @@ class CompressLLM(torch.nn.Module):
         
         # [B,mem_size,emb_size]
         mem_hidden = hidden_states[:,-mem_size:]
-        
         
         tot_loss = 0
         tot_task = 0
@@ -579,7 +577,7 @@ def get_model_for_compress(model_id, task_config, rank):
     # )
     # todo:5.
     if task_config["use_multi_lora"]:
-        modify_llama()
+        # modify_llama()
         model = CompressLLM(
             model_id,
             mem_size=task_config["mem_size"],
